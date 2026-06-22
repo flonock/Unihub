@@ -1,26 +1,391 @@
-@import "tailwindcss";
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --base: #232136;
+  --surface: #2a273f;
+  --overlay: #393552;
+  --muted: #6e6a86;
+  --subtle: #908caa;
+  --text: #e0def4;
+  --love: #eb6f92;
+  --gold: #f6c177;
+  --rose: #ea9a97;
+  --pine: #3e8fb0;
+  --foam: #9ccfd8;
+  --iris: #c4a7e7;
+  --hl-low: #2a283e;
+  --hl-med: #44415a;
+  --hl-high: #56526e;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { box-sizing: border-box; padding: 0; margin: 0; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--base);
+  background-image: 
+    linear-gradient(var(--hl-low) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hl-low) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridMove 120s linear infinite;
+  color: var(--text);
+  font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  min-height: 100vh;
+}
+.app-container {
+  display: flex;
+  height: 100vh;
+}
+.sidebar {
+  width: 300px;
+  background: var(--surface);
+  border-right: 2px dashed var(--muted);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.sidebar-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--iris);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 10px;
+}
+.sidebar-title::before { content: "> "; color: var(--gold); }
+
+.main-content {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 2px dashed var(--muted);
+  padding-bottom: 20px;
+}
+.breadcrumb {
+  font-size: 1.1rem;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.breadcrumb-item {
+  cursor: pointer;
+  color: var(--subtle);
+  transition: color 0.1s;
+}
+.breadcrumb-item:hover { color: var(--text); text-decoration: underline; }
+.breadcrumb-active { color: var(--rose); font-weight: bold; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+.card {
+  background: var(--base);
+  border: 1px solid var(--muted);
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  position: relative;
+  animation: bootSequence 0.4s ease-out forwards;
+}
+.card::before {
+  content: "[ ]";
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  color: var(--muted);
+}
+.card:hover {
+  background: var(--hl-med);
+  border-color: var(--foam);
+}
+.card:hover::before {
+  content: "[x]";
+  color: var(--foam);
+}
+.card-icon {
+  font-size: 1rem;
+  color: var(--pine);
+  font-weight: bold;
+}
+.card-title {
+  font-weight: normal;
+  font-size: 1rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.button {
+  background: var(--overlay);
+  color: var(--text);
+  border: 1px solid var(--muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  transition: all 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+.button::before { content: "["; color: var(--muted); }
+.button::after { content: "]"; color: var(--muted); }
+.button:hover { 
+  background: var(--hl-high); 
+  border-color: var(--love);
+  color: var(--love);
+}
+
+/* Widget */
+.widget {
+  background: var(--base);
+  border: 1px solid var(--muted);
+  padding: 15px;
+  position: relative;
+}
+.widget-title {
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  background: var(--base);
+  padding: 0 5px;
+  color: var(--gold);
+  font-size: 0.8rem;
+  display: flex;
+  width: calc(100% - 20px);
+  justify-content: space-between;
+}
+.widget input {
+  width: 100%;
+  background: var(--overlay);
+  border: 1px solid var(--muted);
+  color: var(--text);
+  padding: 8px;
+  font-family: inherit;
+  margin-bottom: 8px;
+  margin-top: 10px;
+}
+.widget input:focus {
+  outline: none;
+  border-color: var(--iris);
+}
+
+.lecture-item {
+  cursor: pointer;
+  padding-left: 10px;
+  transition: all 0.1s;
+  font-size: 0.95rem;
+  border-left: 2px solid transparent;
+  color: var(--text);
+}
+.lecture-item:hover {
+  color: var(--foam);
+}
+.lecture-item.active {
+  color: var(--rose);
+  border-left-color: var(--rose);
+}
+
+.link-button {
+  background: transparent;
+  color: var(--foam);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  padding: 0;
+  transition: color 0.1s;
+}
+.link-button:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.link-hover:hover {
+  text-decoration: underline !important;
+  color: var(--foam) !important;
+}
+
+/* --- ASCII FUTURISTIC ANIMATIONS --- */
+
+/* 1. Subtle CRT Scanlines */
+body::after {
+  content: "";
+  display: block;
+  position: fixed;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%);
+  z-index: 9999;
+  background-size: 100% 3px;
+  pointer-events: none;
+}
+
+/* 2. Rare Terminal Power Flicker */
+@keyframes textFlicker {
+  0% { opacity: 1; }
+  2% { opacity: 0.8; }
+  4% { opacity: 1; }
+  19% { opacity: 1; }
+  21% { opacity: 0.5; }
+  23% { opacity: 1; }
+  80% { opacity: 1; }
+  82% { opacity: 0.7; color: var(--rose); text-shadow: 0 0 4px var(--rose); }
+  85% { opacity: 1; color: inherit; text-shadow: none; }
+  100% { opacity: 1; }
+}
+
+.sidebar-title, h2 {
+  animation: textFlicker 35s infinite;
+}
+
+/* 3. Blocky Typing Cursor */
+@keyframes blinkCursor {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.breadcrumb-active::after {
+  content: " _";
+  animation: blinkCursor 1.2s infinite steps(1);
+  color: var(--foam);
+  font-weight: bold;
+}
+
+/* 4. Micro Cyber-Glitch on Hover */
+@keyframes cyberHover {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-1px, 1px); }
+  40% { transform: translate(-1px, -1px); }
+  60% { transform: translate(1px, 1px); }
+  80% { transform: translate(1px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.button:hover {
+  animation: cyberHover 0.2s linear;
+}
+
+/* 5. Tactical Grid Background */
+@keyframes gridMove {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 400px; }
+}
+
+/* 6. Custom Terminal Text Selection */
+::selection {
+  background: var(--gold);
+  color: var(--base);
+  text-shadow: none;
+}
+
+/* 7. CRT Phosphor Wake (Triggers on Tab Switch) */
+@keyframes phosphorWake {
+  0% { opacity: 0; filter: blur(6px) brightness(2); transform: scale(0.99); }
+  50% { opacity: 0.8; filter: blur(1px) brightness(1.2); transform: scale(1.002); }
+  100% { opacity: 1; filter: blur(0) brightness(1); transform: scale(1); }
+}
+
+.main-content > div {
+  animation: phosphorWake 0.35s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+
+/* 8. Component Boot Sequence */
+@keyframes bootSequence {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* 9. Timeline Radar Pulse (Today) */
+@keyframes radarPulse {
+  0% { transform: scale(0.5); opacity: 0.8; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+
+.timeline-today-node::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background-color: var(--foam);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: radarPulse 2s cubic-bezier(0.1, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* 10. Axis Data Stream */
+@keyframes dataStream {
+  0% { left: -10%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 110%; opacity: 0; }
+}
+
+.timeline-axis-stream {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 15%;
+  background: linear-gradient(90deg, transparent, var(--pine), transparent);
+  animation: dataStream 3s linear infinite;
+}
+
+/* 11. Timeline Label Glitch Hover */
+.timeline-node-label {
+  transition: all 0.1s;
+}
+.timeline-node-label:hover {
+  text-shadow: 0 0 5px currentColor;
+}
+.timeline-node-label:hover::before {
+  content: "[";
+  color: var(--muted);
+  margin-right: 4px;
+}
+.timeline-node-label:hover::after {
+  content: "]";
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+/* 12. Timeline Gap Pulse */
+@keyframes gapPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; text-shadow: 0 0 3px currentColor; }
+}
+.timeline-gap {
+  animation: gapPulse 4s infinite;
+}
+
+/* 13. Disable Flicker Toggle */
+.no-flicker .sidebar-title,
+.no-flicker h2 {
+  animation: none !important;
 }
