@@ -155,47 +155,6 @@ export default function Dashboard({ ctx }: { ctx: any }) {
           {/* RIGHT COLUMN: TASKS & SESSIONS */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* QUICK START WIDGET */}
-            <div className="panel" style={{ border: '2px solid var(--love)', background: 'rgba(235, 111, 146, 0.05)', textAlign: 'center' }}>
-               <h2 style={{ color: 'var(--love)', fontSize: '1.2rem', margin: '0 0 10px 0' }}>EMERGENCY OVERRIDE</h2>
-               <p style={{ color: 'var(--subtle)', fontSize: '0.9rem', marginBottom: '15px' }}>Automatically compile a cram session for your 3 weakest subjects.</p>
-               <button 
-                  className="button" 
-                  style={{ width: '100%', padding: '15px', fontSize: '1.2rem', borderColor: 'var(--love)', color: 'var(--love)', background: 'var(--surface)', fontWeight: 'bold' }}
-                  onClick={() => {
-                      // Find 3 weakest lectures
-                      const weakLectures = [...lectures]
-                          .map(lec => {
-                              const path = `${selectedSemester}/${lec}`;
-                              const conf = data.confidences?.[path] ?? getCalculatedConfidence(path) ?? 100;
-                              return { path, conf, lec };
-                          })
-                          .sort((a,b) => a.conf - b.conf)
-                          .slice(0, 3);
-                      
-                      const allDecksToStudy = (data.decks || []).filter((d: any) => weakLectures.some(wl => wl.lec === d.linkedLecture && selectedSemester === d.linkedSemester));
-                      
-                      if (allDecksToStudy.length > 0) {
-                          setActiveTab('FLASHCARDS');
-                          if (ctx.setFlashcardTab) ctx.setFlashcardTab('SESSIONS');
-                          // Simple implementation: Just launch a session for the weakest one, or all of them
-                          // Since cram queue takes a session, we can prepare cram queue directly from decks
-                          const syntheticSession = {
-                              id: 'quick-start-' + Date.now(),
-                              name: 'EMERGENCY CRAM: ' + weakLectures.map(wl => wl.lec).join(', '),
-                              linkedSemester: selectedSemester,
-                              targetDecks: allDecksToStudy.map((d: any) => d.id)
-                          };
-                          if (prepareCramQueue) prepareCramQueue(syntheticSession, 'ALL');
-                      } else {
-                          alert('No flashcard decks found for your weakest subjects!');
-                      }
-                  }}
-               >
-                  <Icons.Play size={18} /> INITIATE EMERGENCY CRAM
-               </button>
-            </div>
-
             {/* UP NEXT WIDGET (Formally Active Study Sessions) */}
             <div className="panel" style={{ border: '1px solid var(--pine)', position: 'relative', overflow: 'hidden' }}>
                <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: 'var(--pine)', boxShadow: '0 0 10px var(--pine)' }}></div>
@@ -203,7 +162,7 @@ export default function Dashboard({ ctx }: { ctx: any }) {
                   <h2 style={{ color: 'var(--pine)', fontSize: '1.2rem', margin: 0 }}>&gt; UP NEXT: STUDY SESSIONS</h2>
                   <div style={{ display: 'flex', gap: '5px' }}>
                      <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--pine)', color: 'var(--pine)' }} onClick={() => { setActiveTab('FLASHCARDS'); if (ctx.setFlashcardTab) ctx.setFlashcardTab('LIBRARY'); }}>
-                        [MANAGE DECKS]
+                        Manage Decks
                      </button>
                   </div>
                </div>
@@ -237,7 +196,7 @@ export default function Dashboard({ ctx }: { ctx: any }) {
                  <h2 style={{ color: 'var(--iris)', margin: 0, fontSize: '1.2rem' }}>&gt; ACTION ITEMS</h2>
                  <div style={{ display: 'flex', gap: '10px' }}>
                     <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--gold)', color: 'var(--gold)' }} onClick={() => { setActiveTab('PLANNER'); }}>
-                        [EVENT MANAGER]
+                        Event Manager
                     </button>
                     <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--foam)', color: 'var(--foam)' }} onClick={() => setIsTodoModalOpen(true)}>
                         <Icons.Plus size={14} /> NEW TASK
@@ -267,7 +226,7 @@ export default function Dashboard({ ctx }: { ctx: any }) {
                       
                       {todo.link && (
                         <button className="link-button" style={{ marginLeft: 'auto', fontSize: '0.8rem' }} onClick={() => navigateToLink(todo.link)}>
-                          [JUMP TO LECTURE]
+                          Jump to Lecture
                         </button>
                       )}
 

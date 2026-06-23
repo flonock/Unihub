@@ -161,7 +161,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                    <span>&gt; DOCUMENTS MATRIX</span>
                    <div style={{ display: 'flex', gap: '10px' }}>
                       {isSubfolder && (
-                        <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => ctx.setCurrentPath(parts.slice(0, -1).join('/'))}>[.. GO UP]</button>
+                        <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => ctx.setCurrentPath(parts.slice(0, -1).join('/'))}>.. Go Up</button>
                       )}
                       <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => handleCreateFolder(currentPath)}>+ FOLDER</button>
                       <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={handleNewNote}>+ NOTE</button>
@@ -177,9 +177,12 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                    <div style={{ display: 'flex', flexDirection: 'column', height: '400px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                          <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{inlinePreviewFile.name}</span>
-                         <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--love)', borderColor: 'var(--love)' }} onClick={() => setInlinePreviewFile(null)}>CLOSE PREVIEW</button>
+                         <div style={{ display: 'flex', gap: '10px' }}>
+                            <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => { handleOpen(inlinePreviewFile); setInlinePreviewFile(null); }}>EXPAND</button>
+                            <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--love)', borderColor: 'var(--love)' }} onClick={() => setInlinePreviewFile(null)}>CLOSE</button>
+                         </div>
                       </div>
-                      <iframe src={`/api/serve-file?path=${encodeURIComponent(inlinePreviewFile.path)}`} style={{ flex: 1, width: '100%', border: '1px solid var(--muted)', background: 'white' }} />
+                      <iframe src={`/api/serve-file?path=${encodeURIComponent(inlinePreviewFile.path)}#toolbar=0&navpanes=0&scrollbar=0`} style={{ flex: 1, width: '100%', border: '1px solid var(--muted)', background: 'white' }} />
                    </div>
                 ) : (
                    <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
@@ -204,7 +207,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', paddingLeft: '10px' }}>
                    <h2 style={{ color: 'var(--pine)', fontSize: '1.1rem', margin: 0 }}>&gt; NEURAL LINK (FLASHCARDS)</h2>
                    <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--pine)', color: 'var(--pine)' }} onClick={() => { setActiveTab('FLASHCARDS'); if (setFlashcardTab) setFlashcardTab('LIBRARY'); }}>
-                      [MANAGE DECKS]
+                      Manage Decks
                    </button>
                 </div>
                 
@@ -228,7 +231,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                                if (prepareCramQueue) prepareCramQueue(activeSessions[0], 'ALL');
                             }}
                          >
-                            &gt; INITIALIZE STUDY SESSION
+                            Start Study Session
                          </button>
                       ) : (
                          <button 
@@ -236,7 +239,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                             style={{ width: '100%', marginTop: '10px', borderColor: 'var(--subtle)', color: 'var(--subtle)', padding: '10px', fontSize: '0.9rem' }}
                             onClick={() => { setActiveTab('FLASHCARDS'); setFlashcardTab('SESSIONS'); }}
                          >
-                            + CREATE STUDY SESSION
+                            Create Study Session
                          </button>
                       )}
                    </div>
