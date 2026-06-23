@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Icons } from '../shared/Icons';
 
 export default function ActionItems({ ctx }: { ctx: any }) {
-    const { data, groupedTodos, saveData, navigateToLink, setActiveTab, setIsTodoModalOpen } = ctx;
+    const { data, groupedTodos, saveData, navigateToLink, setActiveTab } = ctx;
+    const [isTodoModalOpen, setIsTodoModalOpen] = useState(false);
     const [editingProgressId, setEditingProgressId] = useState<string | null>(null);
     const [tempProgressValue, setTempProgressValue] = useState(0);
 
@@ -89,6 +90,61 @@ export default function ActionItems({ ctx }: { ctx: any }) {
                     ))}
                 </div>
             ))}
+
+            {(isTodoModalOpen || ctx.editingTodoId) && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', paddingTop: '10vh', backdropFilter: 'blur(4px)' }} onClick={() => { setIsTodoModalOpen(false); if (ctx.cancelEditTodo) ctx.cancelEditTodo(); }}>
+                    <div style={{ background: 'var(--base)', border: '1px solid var(--muted)', width: '500px', maxWidth: '90vw', borderRadius: '8px', padding: '30px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ margin: 0, color: 'var(--foam)', fontSize: '1.2rem' }}>{ctx.editingTodoId ? 'Edit Task' : 'New Task'}</h2>
+                        
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)', fontSize: '0.9rem' }}>Task Title</label>
+                            <input 
+                                autoFocus
+                                value={ctx.newTodoTitle} 
+                                onChange={e => ctx.setNewTodoTitle(e.target.value)} 
+                                style={{ width: '100%', padding: '10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', borderRadius: '4px' }}
+                            />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)', fontSize: '0.9rem' }}>Linked Lecture (Optional)</label>
+                            <input 
+                                value={ctx.newTodoLink} 
+                                onChange={e => ctx.setNewTodoLink(e.target.value)} 
+                                placeholder="e.g. L1"
+                                style={{ width: '100%', padding: '10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', borderRadius: '4px' }}
+                            />
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '15px' }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)', fontSize: '0.9rem' }}>Progress (%)</label>
+                                <input 
+                                    type="number" 
+                                    min="0" max="100"
+                                    value={ctx.newTodoProgress} 
+                                    onChange={e => ctx.setNewTodoProgress(parseInt(e.target.value) || 0)} 
+                                    style={{ width: '100%', padding: '10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', borderRadius: '4px' }}
+                                />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)', fontSize: '0.9rem' }}>Due Date</label>
+                                <input 
+                                    type="date"
+                                    value={ctx.newTodoDueDate} 
+                                    onChange={e => ctx.setNewTodoDueDate(e.target.value)} 
+                                    style={{ width: '100%', padding: '10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', borderRadius: '4px' }}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                            <button className="button" onClick={() => { setIsTodoModalOpen(false); if (ctx.cancelEditTodo) ctx.cancelEditTodo(); }} style={{ borderColor: 'var(--love)', color: 'var(--love)', padding: '5px 15px' }}>Cancel</button>
+                            <button className="button" onClick={() => { ctx.handleAddOrUpdateTodo(); setIsTodoModalOpen(false); }} style={{ borderColor: 'var(--pine)', color: 'var(--pine)', padding: '5px 15px' }}>Save</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

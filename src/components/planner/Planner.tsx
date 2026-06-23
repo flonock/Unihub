@@ -5,7 +5,9 @@ export default function Planner({ ctx }: { ctx: any }) {
     currentMonth, setCurrentMonth, data, newEventTitle, setNewEventTitle, 
     newEventType, setNewEventType, newEventStart, setNewEventStart, 
     newEventEnd, setNewEventEnd, handleAddOrUpdateEvent, editingEventId, 
-    cancelEditEvent, cloneEvent, startEditEvent, handleDeleteEvent 
+    cancelEditEvent, cloneEvent, startEditEvent, handleDeleteEvent,
+    newEventLinkedDeckId, setNewEventLinkedDeckId, setActiveTab, 
+    setFlashcardTab, prepareCramQueue
   } = ctx;
 
   const renderCalendar = () => {
@@ -82,10 +84,18 @@ export default function Planner({ ctx }: { ctx: any }) {
              {/* Add/Edit Event Form */}
              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', background: 'var(--surface)', padding: '15px', border: `1px ${editingEventId ? 'solid var(--foam)' : 'solid var(--muted)'}`, borderRadius: '4px' }}>
                 <input placeholder="Event Title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{ flex: 2, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                <select value={newEventType} onChange={e => setNewEventType(e.target.value as any)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-                    <option value="study">Study Block</option>
-                    <option value="task">Deadline</option>
-                </select>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <select value={newEventType} onChange={e => setNewEventType(e.target.value as any)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                      <option value="study">Study Block</option>
+                      <option value="task">Deadline</option>
+                  </select>
+                  {newEventType === 'study' && (
+                      <select value={newEventLinkedDeckId || ''} onChange={e => setNewEventLinkedDeckId(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                          <option value="">-- Link to Flashcard Deck (Optional) --</option>
+                          {(data.decks || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <input type="date" value={newEventStart} onChange={e => setNewEventStart(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
                   <span style={{ color: 'var(--muted)' }}>to</span>
@@ -114,6 +124,27 @@ export default function Planner({ ctx }: { ctx: any }) {
                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                               <span style={{ color: ev.type === 'study' ? 'var(--pine)' : 'var(--gold)', fontWeight: 'bold' }}>{ev.title}</span>
                               <div style={{ display: 'flex', gap: '10px' }}>
+                                 {ev.linkedDeckId && (
+                                    <span style={{ color: 'var(--pine)', cursor: 'pointer', fontSize: '0.8rem', border: '1px solid var(--pine)', padding: '0 4px', borderRadius: '2px' }} onClick={() => {
+                                        const deck = (data.decks || []).find((d: any) => d.id === ev.linkedDeckId);
+                                        if (deck) {
+                                            setActiveTab('FLASHCARDS');
+                                            if (setFlashcardTab) setFlashcardTab('SESSIONS');
+                                            const newSession = {
+                                                id: 'session-' + Date.now(),
+                                                name: `Review: ${deck.name} (from Planner)`,
+                                                linkedSemester: deck.linkedSemester,
+                                                linkedLecture: deck.linkedLecture,
+                                                deckIds: [deck.id],
+                                                cards: [],
+                                                createdAt: new Date().toISOString()
+                                            };
+                                            const newData = { ...data, studySessions: [...(data.studySessions || []), newSession] };
+                                            ctx.saveData(newData);
+                                            if (prepareCramQueue) prepareCramQueue(newSession, 'ALL');
+                                        }
+                                    }} title="Start Study Session">[STUDY]</span>
+                                 )}
                                  <span style={{ color: 'var(--gold)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => cloneEvent(ev)} title="Copy">[COPY]</span>
                                  <span style={{ color: 'var(--foam)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => startEditEvent(ev)} title="Edit">[EDIT]</span>
                                  <span style={{ color: 'var(--love)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => handleDeleteEvent(ev.id)} title="Delete">[DEL]</span>

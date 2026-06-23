@@ -194,6 +194,7 @@ export default function Workspace() {
   const [newEventStart, setNewEventStart] = useState('');
   const [newEventEnd, setNewEventEnd] = useState('');
   const [newEventType, setNewEventType] = useState<'study' | 'task'>('study');
+  const [newEventLinkedDeckId, setNewEventLinkedDeckId] = useState('');
 
   useEffect(() => {
     fetch('/api/data')
@@ -516,14 +517,14 @@ export default function Workspace() {
       if (newEventEnd < newEventStart) { alert('End date must be at or after start date'); return; }
       
       if (editingEventId) {
-          const updated = (data.events || []).map(e => e.id === editingEventId ? { ...e, title: newEventTitle, startDate: newEventStart, endDate: newEventEnd, type: newEventType } : e);
+          const updated = (data.events || []).map(e => e.id === editingEventId ? { ...e, title: newEventTitle, startDate: newEventStart, endDate: newEventEnd, type: newEventType, linkedDeckId: newEventLinkedDeckId || undefined } : e);
           saveData({ ...data, events: updated });
           setEditingEventId(null);
       } else {
-          const newEv: CalendarEvent = { id: Date.now().toString(), title: newEventTitle, startDate: newEventStart, endDate: newEventEnd, type: newEventType };
+          const newEv: CalendarEvent = { id: Date.now().toString(), title: newEventTitle, startDate: newEventStart, endDate: newEventEnd, type: newEventType, linkedDeckId: newEventLinkedDeckId || undefined };
           saveData({ ...data, events: [...(data.events || []), newEv] });
       }
-      setNewEventTitle(''); setNewEventStart(''); setNewEventEnd('');
+      setNewEventTitle(''); setNewEventStart(''); setNewEventEnd(''); setNewEventLinkedDeckId('');
   };
 
   const startEditEvent = (ev: CalendarEvent) => {
@@ -532,6 +533,7 @@ export default function Workspace() {
       setNewEventStart(ev.startDate);
       setNewEventEnd(ev.endDate);
       setNewEventType(ev.type);
+      setNewEventLinkedDeckId(ev.linkedDeckId || '');
   };
   
   const cloneEvent = (ev: CalendarEvent) => {
@@ -540,11 +542,12 @@ export default function Workspace() {
       setNewEventStart(ev.startDate);
       setNewEventEnd(ev.endDate);
       setNewEventType(ev.type);
+      setNewEventLinkedDeckId(ev.linkedDeckId || '');
   };
 
   const cancelEditEvent = () => {
       setEditingEventId(null);
-      setNewEventTitle(''); setNewEventStart(''); setNewEventEnd('');
+      setNewEventTitle(''); setNewEventStart(''); setNewEventEnd(''); setNewEventLinkedDeckId('');
   };
 
   const handleDeleteEvent = (id: string) => {
@@ -1676,6 +1679,8 @@ export default function Workspace() {
     setNewEventEnd,
     newEventType,
     setNewEventType,
+    newEventLinkedDeckId,
+    setNewEventLinkedDeckId,
     handleAddSemester,
     handleAddContainer,
     handleDeleteSemester,

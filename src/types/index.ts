@@ -31,6 +31,7 @@ export type CalendarEvent = {
   endDate: string;
   type: 'task' | 'study';
   link?: string;
+  linkedDeckId?: string;
 };
 
 export type LectureMeta = {

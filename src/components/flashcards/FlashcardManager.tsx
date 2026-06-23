@@ -13,7 +13,7 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
     expandedDecks, setExpandedDecks, saveData, prepareCramQueue, handleRateCramCard,
     asyncPrompt, handlePaste, setEditingPreview, handleMoveCard, searchCardQuery, setSearchCardQuery, editingPreview,
     showAnswer, setShowAnswer, handleScoreCard, asyncConfirm, setData, availableDecks, handleImportFile, importLoading, setDeckSettingsModal,
-    studyMode, setStudyMode
+    studyMode, setStudyMode, currentCardIndex, setCurrentCardIndex
   } = ctx;
 
 
@@ -25,7 +25,7 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
   const [cardTags, setCardTags] = useState('');
   const [cramIndex, setCramIndex] = useState(0);
   const [activeSessionType, setActiveSessionType] = useState('ALL');
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
   const [sessionStudyFilter, setSessionStudyFilter] = useState<'ALL' | 'HARD' | 'EASY' | null>(null);
   const [importModalData, setImportModalData] = useState<{ semester: string, lecture: string } | null>(null);
 
@@ -135,63 +135,20 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                                       <div style={{ width: `${progress}%`, height: '100%', background: 'var(--pine)', borderRadius: '2px', transition: 'width 0.3s' }} />
                                   </div>
                                   
-                                  <div style={{ perspective: '1000px', width: '100%', minHeight: '300px', position: 'relative', cursor: !showAnswer ? 'pointer' : 'default' }} onClick={() => { if (!showAnswer) setShowAnswer(true); }}>
-                                    <div style={{ 
-                                        width: '100%', 
-                                        height: '100%', 
-                                        position: 'absolute', 
-                                        transition: 'transform 0.6s', 
-                                        transformStyle: 'preserve-3d',
-                                        transform: showAnswer ? 'rotateX(180deg)' : 'rotateX(0deg)'
-                                    }}>
-                                      <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} style={{ 
-                                         position: 'absolute',
-                                         width: '100%',
-                                         height: '100%',
-                                         backfaceVisibility: 'hidden',
-                                         background: 'var(--base)',
-                                         border: '1px solid var(--muted)',
-                                         padding: '40px',
-                                         borderRadius: '8px',
-                                         display: 'flex',
-                                         alignItems: 'center',
-                                         justifyContent: 'center',
-                                         fontSize: '1.2rem',
-                                         textAlign: 'center',
-                                         whiteSpace: 'pre-wrap',
-                                         boxSizing: 'border-box'
-                                      }} />
-                                      <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} style={{ 
-                                         position: 'absolute',
-                                         width: '100%',
-                                         height: '100%',
-                                         backfaceVisibility: 'hidden',
-                                         background: 'var(--base)',
-                                         border: '1px solid var(--gold)',
-                                         boxShadow: '0 0 15px rgba(234, 157, 52, 0.2)',
-                                         padding: '40px',
-                                         borderRadius: '8px',
-                                         display: 'flex',
-                                         alignItems: 'center',
-                                         justifyContent: 'center',
-                                         fontSize: '1.2rem',
-                                         textAlign: 'center',
-                                         whiteSpace: 'pre-wrap',
-                                         transform: 'rotateX(180deg)',
-                                         boxSizing: 'border-box'
-                                      }} />
-                                    </div>
-                                  </div>
-                                  
-                                  {!showAnswer ? (
-                                      <div style={{ textAlign: 'center', color: 'var(--subtle)', fontSize: '0.9rem', marginTop: '10px' }}>Click card to reveal answer</div>
-                                  ) : (
-                                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                   <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--surface)', padding: '40px', borderRadius: '8px', border: '1px solid var(--muted)', marginBottom: '20px', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap', cursor: !showAnswer ? 'pointer' : 'default' }} onClick={() => { if (!showAnswer) setShowAnswer(true); }} dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
+                                   
+                                   {!showAnswer ? (
+                                       <div style={{ textAlign: 'center', color: 'var(--subtle)', fontSize: '0.9rem', marginTop: '10px' }}>Click card to reveal answer</div>
+                                   ) : (
+                                       <>
+                                           <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--hl-low)', padding: '40px', borderRadius: '8px', border: '1px dashed var(--gold)', marginBottom: '20px', fontSize: '1.2rem', textAlign: 'center', color: 'var(--gold)', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
+                                           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                                           <button className="button" onClick={() => handleRateCramCard(0)} style={{ flex: 1, borderColor: 'var(--love)', color: 'var(--love)' }}>Again</button>
                                           <button className="button" onClick={() => handleRateCramCard(1)} style={{ flex: 1, borderColor: 'var(--rose)', color: 'var(--rose)' }}>Hard</button>
                                           <button className="button" onClick={() => handleRateCramCard(2)} style={{ flex: 1, borderColor: 'var(--pine)', color: 'var(--pine)' }}>Good</button>
                                           <button className="button" onClick={() => handleRateCramCard(3)} style={{ flex: 1, borderColor: 'var(--foam)', color: 'var(--foam)' }}>Easy</button>
                                       </div>
+                                      </>
                                   )}
                                   
                                   <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
