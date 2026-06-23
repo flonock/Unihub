@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Dashboard from '@/components/dashboard/Dashboard';
 import FlashcardManager from '@/components/flashcards/FlashcardManager';
 import WidgetPanel from '@/components/widgets/WidgetPanel';
+import FlashcardOverview from '@/components/flashcards/FlashcardOverview';
 import Planner from '@/components/planner/Planner';
 import ActionItems from '@/components/planner/ActionItems';
 import LectureNexus from '@/components/lecture/LectureNexus';
@@ -12,8 +13,8 @@ import Sidebar from '@/components/layout/Sidebar';
 import type { FileEntry, Exam, Todo, CalendarEvent, LectureMeta, Flashcard, Deck, StudySession, WorkspaceData } from '@/types';
 
 export default function Workspace() {
-  const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS'>('MISSION_CONTROL');
-  const [rightPanelMode, setRightPanelMode] = useState<'ACTION_ITEMS' | 'WIDGETS' | 'HIDDEN'>('WIDGETS');
+  const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS' | 'WIDGETS'>('MISSION_CONTROL');
+  const [rightPanelMode, setRightPanelMode] = useState<'ACTION_ITEMS' | 'FLASHCARDS' | 'HIDDEN'>('ACTION_ITEMS');
 
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [currentPath, setCurrentPath] = useState('');
@@ -1765,6 +1766,7 @@ export default function Workspace() {
         )}
         
         {activeTab === 'FLASHCARDS' && <FlashcardManager ctx={ctx} />}
+            {activeTab === 'WIDGETS' && <WidgetPanel appConfig={appConfig} />}
         {activeTab === 'PLANNER' && <Planner ctx={ctx} />}
       </div>
 
@@ -1772,11 +1774,11 @@ export default function Workspace() {
         <div className="right-panel" style={{ width: '400px', background: 'var(--surface)', borderLeft: '2px dashed var(--muted)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', padding: '15px', gap: '10px', borderBottom: '1px solid var(--muted)' }}>
             <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'ACTION_ITEMS' ? 'var(--gold)' : 'var(--muted)', color: rightPanelMode === 'ACTION_ITEMS' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setRightPanelMode('ACTION_ITEMS')}>TASKS</button>
-            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'WIDGETS' ? 'var(--foam)' : 'var(--muted)', color: rightPanelMode === 'WIDGETS' ? 'var(--foam)' : 'var(--text)' }} onClick={() => setRightPanelMode('WIDGETS')}>WIDGETS</button>
+            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'FLASHCARDS' ? 'var(--foam)' : 'var(--muted)', color: rightPanelMode === 'FLASHCARDS' ? 'var(--foam)' : 'var(--text)' }} onClick={() => setRightPanelMode('FLASHCARDS')}>CARDS</button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
             {rightPanelMode === 'ACTION_ITEMS' && <ActionItems ctx={ctx} />}
-            {rightPanelMode === 'WIDGETS' && <WidgetPanel appConfig={appConfig} />}
+            {rightPanelMode === 'FLASHCARDS' && <FlashcardOverview ctx={ctx} />}
           </div>
         </div>
       )}

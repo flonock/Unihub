@@ -96,107 +96,132 @@ export default function WidgetPanel({ appConfig }: { appConfig: any }) {
   }
 
   return (
-    <div className="widget" style={{marginTop: 'auto'}}>
-      <div className="widget-title">
-        <span>--- {widgetNames[activeWidget].toUpperCase()} ---</span>
-        <div style={{ display: 'flex', gap: '5px', cursor: 'pointer' }}>
-          <span onClick={() => setActiveWidget((prev) => (prev - 1 + widgetNames.length) % widgetNames.length)} style={{color: 'var(--foam)'}}>[&lt;]</span>
-          <span onClick={() => setActiveWidget((prev) => (prev + 1) % widgetNames.length)} style={{color: 'var(--foam)'}}>[&gt;]</span>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+      <div style={{ borderBottom: '2px dashed var(--muted)', paddingBottom: '20px' }}>
+        <h1 style={{ color: 'var(--iris)', margin: 0, fontSize: '2rem', textShadow: '0 0 10px rgba(196, 167, 231, 0.3)' }}>&gt; SYSTEM UTILITIES</h1>
+        <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', letterSpacing: '0.1em', marginTop: '5px' }}>[ AUXILIARY TOOLS ]</div>
       </div>
 
-      {activeWidget === 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '5px 0' }}>
-           <div style={{ fontSize: '2rem', color: pomoActive ? 'var(--love)' : 'var(--text)', fontWeight: 'bold', textShadow: pomoActive ? '0 0 10px var(--love)' : 'none' }}>
-              {Math.floor(pomoTime / 60).toString().padStart(2, '0')}:{(pomoTime % 60).toString().padStart(2, '0')}
-           </div>
-           <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
-              <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.75rem', borderColor: pomoActive ? 'var(--love)' : 'var(--foam)', color: pomoActive ? 'var(--love)' : 'var(--foam)' }} onClick={() => setPomoActive(!pomoActive)}>
-                 {pomoActive ? 'PAUSE' : 'START'}
-              </button>
-              <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.75rem' }} onClick={() => { setPomoActive(false); setPomoTime(pomoMode === 'WORK' ? (appConfig?.pomoWorkTime || 25) * 60 : (appConfig?.pomoBreakTime || 5) * 60); }}>
-                 RESET
-              </button>
-           </div>
-           <div style={{ display: 'flex', gap: '10px', fontSize: '0.7rem' }}>
-              <span style={{ cursor: 'pointer', color: pomoMode === 'WORK' ? 'var(--gold)' : 'var(--subtle)' }} onClick={() => { setPomoMode('WORK'); setPomoActive(false); setPomoTime((appConfig?.pomoWorkTime || 25) * 60); }}>[ WORK ]</span>
-              <span style={{ cursor: 'pointer', color: pomoMode === 'BREAK' ? 'var(--gold)' : 'var(--subtle)' }} onClick={() => { setPomoMode('BREAK'); setPomoActive(false); setPomoTime((appConfig?.pomoBreakTime || 5) * 60); }}>[ BREAK ]</span>
-           </div>
-        </div>
-      )}
-
-      {activeWidget === 1 && (
-        <div style={{ padding: '5px 0' }}>
-          <div style={{display: 'flex', gap: '5px', marginBottom: '8px'}}>
-             <input type="number" value={convValue} onChange={e => setConvValue(e.target.value)} style={{ flex: 1, background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '4px', fontSize: '0.9rem', width: '50%' }} />
-             <select value={convType} onChange={e => setConvType(e.target.value)} style={{ flex: 1, background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '4px', fontSize: '0.8rem', width: '50%', cursor: 'pointer' }}>
-                <option value="lb_to_kg">lb &rarr; kg</option>
-                <option value="kg_to_lb">kg &rarr; lb</option>
-                <option value="mi_to_km">mi &rarr; km</option>
-                <option value="km_to_mi">km &rarr; mi</option>
-                <option value="f_to_c">°F &rarr; °C</option>
-                <option value="c_to_f">°C &rarr; °F</option>
-                <option value="psi_to_pa">psi &rarr; Pa</option>
-                <option value="pa_to_psi">Pa &rarr; psi</option>
-                <option disabled>──────</option>
-                <option value="sec_to_hr">sec &rarr; hr</option>
-                <option value="hr_to_sec">hr &rarr; sec</option>
-                <option value="day_to_hr">day &rarr; hr</option>
-                <option value="hr_to_day">hr &rarr; day</option>
-                <option disabled>──────</option>
-                <option value="j_to_cal">J &rarr; cal</option>
-                <option value="cal_to_j">cal &rarr; J</option>
-                <option value="w_to_hp">W &rarr; hp</option>
-                <option value="hp_to_w">hp &rarr; W</option>
-                <option disabled>──────</option>
-                <option value="m_s_to_km_h">m/s &rarr; km/h</option>
-                <option value="km_h_to_m_s">km/h &rarr; m/s</option>
-             </select>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+        
+        {/* Widget 0: Pomodoro */}
+        <div className="panel hover-glow">
+          <div className="panel-header">
+            <span>&gt; {widgetNames[0].toUpperCase()}</span>
           </div>
-          <div style={{ fontSize: '1rem', color: 'var(--pine)', fontWeight: 'bold', textAlign: 'center', padding: '5px', background: 'var(--hl-low)', border: '1px dashed var(--pine)' }}>
-             {convertedValue}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', padding: '10px 0' }}>
+             <div style={{ fontSize: '3rem', color: pomoActive ? 'var(--love)' : 'var(--text)', fontWeight: 'bold', textShadow: pomoActive ? '0 0 15px var(--love)' : 'none' }}>
+                {Math.floor(pomoTime / 60).toString().padStart(2, '0')}:{(pomoTime % 60).toString().padStart(2, '0')}
+             </div>
+             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                <button className="button" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', borderColor: pomoActive ? 'var(--love)' : 'var(--foam)', color: pomoActive ? 'var(--love)' : 'var(--foam)' }} onClick={() => setPomoActive(!pomoActive)}>
+                   {pomoActive ? 'PAUSE' : 'START'}
+                </button>
+                <button className="button" style={{ flex: 1, padding: '8px', fontSize: '0.85rem' }} onClick={() => { setPomoActive(false); setPomoTime(pomoMode === 'WORK' ? (appConfig?.pomoWorkTime || 25) * 60 : (appConfig?.pomoBreakTime || 5) * 60); }}>
+                   RESET
+                </button>
+             </div>
+             <div style={{ display: 'flex', gap: '15px', fontSize: '0.85rem' }}>
+                <span style={{ cursor: 'pointer', color: pomoMode === 'WORK' ? 'var(--gold)' : 'var(--subtle)', fontWeight: pomoMode === 'WORK' ? 'bold' : 'normal' }} onClick={() => { setPomoMode('WORK'); setPomoActive(false); setPomoTime((appConfig?.pomoWorkTime || 25) * 60); }}>[ WORK ]</span>
+                <span style={{ cursor: 'pointer', color: pomoMode === 'BREAK' ? 'var(--gold)' : 'var(--subtle)', fontWeight: pomoMode === 'BREAK' ? 'bold' : 'normal' }} onClick={() => { setPomoMode('BREAK'); setPomoActive(false); setPomoTime((appConfig?.pomoBreakTime || 5) * 60); }}>[ BREAK ]</span>
+             </div>
           </div>
         </div>
-      )}
 
-      {activeWidget === 2 && (
-        <div style={{ padding: '10px 0', textAlign: 'center' }}>
-          <div style={{fontSize: '0.75rem', color: 'var(--subtle)'}}>UTC TIME</div>
-          <div style={{fontSize: '1rem', color: 'var(--foam)', marginBottom: '10px'}}>{utc}</div>
-          <div style={{fontSize: '0.75rem', color: 'var(--subtle)'}}>JULIAN DATE</div>
-          <div style={{fontSize: '1rem', color: 'var(--rose)'}}>{jd}</div>
-        </div>
-      )}
-
-      {activeWidget === 3 && (
-        <div style={{ padding: '5px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <input value={encInput} onChange={e => setEncInput(e.target.value)} placeholder="Type text..." style={{ width: '100%', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '6px', fontSize: '0.8rem' }} />
-          <div style={{ display: 'flex', gap: '5px' }}>
-              <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.7rem', borderColor: encMode === 'HEX' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'HEX' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('HEX')}>HEX</button>
-              <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.7rem', borderColor: encMode === 'BIN' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'BIN' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('BIN')}>BIN</button>
+        {/* Widget 1: Converter */}
+        <div className="panel hover-glow">
+          <div className="panel-header">
+            <span>&gt; {widgetNames[1].toUpperCase()}</span>
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'var(--iris)', fontFamily: 'monospace', padding: '8px', background: 'var(--hl-low)', border: '1px dashed var(--iris)', wordBreak: 'break-all', maxHeight: '80px', overflowY: 'auto' }}>
-             {encodedValue || '...'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', padding: '10px 0' }}>
+            <div style={{display: 'flex', gap: '10px'}}>
+               <input type="number" value={convValue} onChange={e => setConvValue(e.target.value)} className="unified-input" style={{ flex: 1 }} />
+               <select value={convType} onChange={e => setConvType(e.target.value)} className="unified-input" style={{ flex: 1, cursor: 'pointer' }}>
+                  <option value="lb_to_kg">lb &rarr; kg</option>
+                  <option value="kg_to_lb">kg &rarr; lb</option>
+                  <option value="mi_to_km">mi &rarr; km</option>
+                  <option value="km_to_mi">km &rarr; mi</option>
+                  <option value="f_to_c">°F &rarr; °C</option>
+                  <option value="c_to_f">°C &rarr; °F</option>
+                  <option value="psi_to_pa">psi &rarr; Pa</option>
+                  <option value="pa_to_psi">Pa &rarr; psi</option>
+                  <option disabled>──────</option>
+                  <option value="sec_to_hr">sec &rarr; hr</option>
+                  <option value="hr_to_sec">hr &rarr; sec</option>
+                  <option value="day_to_hr">day &rarr; hr</option>
+                  <option value="hr_to_day">hr &rarr; day</option>
+                  <option disabled>──────</option>
+                  <option value="j_to_cal">J &rarr; cal</option>
+                  <option value="cal_to_j">cal &rarr; J</option>
+                  <option value="w_to_hp">W &rarr; hp</option>
+                  <option value="hp_to_w">hp &rarr; W</option>
+                  <option disabled>──────</option>
+                  <option value="m_s_to_km_h">m/s &rarr; km/h</option>
+                  <option value="km_h_to_m_s">km/h &rarr; m/s</option>
+               </select>
+            </div>
+            <div style={{ fontSize: '1.5rem', color: 'var(--pine)', fontWeight: 'bold', textAlign: 'center', padding: '15px', background: 'var(--hl-low)', border: '1px dashed var(--pine)' }}>
+               {convertedValue}
+            </div>
           </div>
         </div>
-      )}
 
-      {activeWidget === 4 && (
-        <div style={{ padding: '5px 0' }}>
-           <div style={{ fontSize: '0.75rem', color: 'var(--subtle)', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-              <span>UPLINK STATUS</span>
-              <span style={{ color: 'var(--pine)', animation: 'blinkCursor 1s infinite' }}>SECURE</span>
-           </div>
-           <div style={{ display: 'flex', alignItems: 'flex-end', height: '40px', gap: '2px', borderBottom: '1px solid var(--muted)', paddingBottom: '2px' }}>
-              {pingData.map((p, i) => (
-                 <div key={i} style={{ flex: 1, background: 'var(--foam)', opacity: 0.6 + (p/20)*0.4, height: `${(p/25)*100}%`, transition: 'height 0.2s' }}></div>
-              ))}
-           </div>
-           <div style={{ fontSize: '0.7rem', color: 'var(--subtle)', marginTop: '5px', textAlign: 'right' }}>
-              Avg Latency: {Math.round(pingData.reduce((a,b)=>a+b,0)/pingData.length)}ms
-           </div>
+        {/* Widget 2: Astro Clock */}
+        <div className="panel hover-glow">
+          <div className="panel-header">
+            <span>&gt; {widgetNames[2].toUpperCase()}</span>
+          </div>
+          <div style={{ padding: '10px 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <div style={{fontSize: '0.85rem', color: 'var(--subtle)', letterSpacing: '0.1em'}}>UTC TIME</div>
+              <div style={{fontSize: '1.5rem', color: 'var(--foam)', fontWeight: 'bold'}}>{utc || '00:00:00 Z'}</div>
+            </div>
+            <div>
+              <div style={{fontSize: '0.85rem', color: 'var(--subtle)', letterSpacing: '0.1em'}}>JULIAN DATE</div>
+              <div style={{fontSize: '1.5rem', color: 'var(--rose)', fontWeight: 'bold'}}>{jd || '0.00000'}</div>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Widget 3: Data Encoder */}
+        <div className="panel hover-glow">
+          <div className="panel-header">
+            <span>&gt; {widgetNames[3].toUpperCase()}</span>
+          </div>
+          <div style={{ padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <input value={encInput} onChange={e => setEncInput(e.target.value)} placeholder="Type text..." className="unified-input" />
+            <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="button" style={{ flex: 1, padding: '6px', fontSize: '0.8rem', borderColor: encMode === 'HEX' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'HEX' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('HEX')}>HEX</button>
+                <button className="button" style={{ flex: 1, padding: '6px', fontSize: '0.8rem', borderColor: encMode === 'BIN' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'BIN' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('BIN')}>BIN</button>
+            </div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--iris)', fontFamily: 'monospace', padding: '10px', background: 'var(--hl-low)', border: '1px dashed var(--iris)', wordBreak: 'break-all', minHeight: '80px', maxHeight: '120px', overflowY: 'auto' }}>
+               {encodedValue || '...'}
+            </div>
+          </div>
+        </div>
+
+        {/* Widget 4: Telemetry */}
+        <div className="panel hover-glow">
+          <div className="panel-header">
+            <span>&gt; {widgetNames[4].toUpperCase()}</span>
+          </div>
+          <div style={{ padding: '10px 0', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+             <div style={{ fontSize: '0.85rem', color: 'var(--subtle)', display: 'flex', justifyContent: 'space-between' }}>
+                <span>UPLINK STATUS</span>
+                <span style={{ color: 'var(--pine)', animation: 'blinkCursor 1s infinite' }}>SECURE</span>
+             </div>
+             <div style={{ display: 'flex', alignItems: 'flex-end', flex: 1, minHeight: '100px', gap: '4px', borderBottom: '1px solid var(--muted)', paddingBottom: '5px' }}>
+                {pingData.map((p, i) => (
+                   <div key={i} style={{ flex: 1, background: 'var(--foam)', opacity: 0.6 + (p/20)*0.4, height: `${(p/25)*100}%`, transition: 'height 0.2s' }}></div>
+                ))}
+             </div>
+             <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', textAlign: 'right' }}>
+                Avg Latency: {Math.round(pingData.reduce((a,b)=>a+b,0)/pingData.length)}ms
+             </div>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }

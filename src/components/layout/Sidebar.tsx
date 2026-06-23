@@ -23,6 +23,9 @@ export default function Sidebar({ ctx }: { ctx: any }) {
          <button className="button" style={{ borderColor: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--muted)', color: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => { setActiveTab('FLASHCARDS'); if (ctx.setFlashcardTab) ctx.setFlashcardTab('LIBRARY'); }}>
              <Icons.Plus size={14} /> FLASHCARD DB
          </button>
+         <button className="button" style={{ borderColor: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--muted)', color: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('WIDGETS')}>
+             <Icons.Plus size={14} /> UTILITIES
+         </button>
       </div>
 
       {/* SEMESTER SELECTOR */}
