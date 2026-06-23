@@ -8,8 +8,9 @@ type Todo = { id: string; title: string; status: boolean; link: string; progress
 type CalendarEvent = { id: string; title: string; startDate: string; endDate: string; type: 'task' | 'study'; link?: string; };
 type LectureMeta = { category?: 'Wahlpflicht' | 'Wahlfach' | 'Ignore' | ''; credits?: number; grade?: string; container?: string; notes?: string; };
 type Flashcard = { id: string; front: string; back: string; ease?: number; interval?: number; nextReview?: string; };
-type Deck = { id: string; name: string; link?: string; cards: Flashcard[]; };
-type WorkspaceData = { exams: Exam[]; todos: Todo[]; notes: string; studyPlan?: string; events?: CalendarEvent[]; confidences?: Record<string, number>; examPeriodStart?: string; examPeriodEnd?: string; lectureMeta?: Record<string, LectureMeta>; containers?: string[]; containerMaxCredits?: Record<string, number>; decks?: Deck[]; };
+type Deck = { id: string; name: string; link?: string; linkedSemester?: string; linkedLecture?: string; cards: Flashcard[]; };
+type StudySession = { id: string; name: string; mode: 'cram' | 'spaced'; deckIds: string[]; cardIds: string[]; batchSize: number; cramState?: { cardRatings: Record<string, 0|1|2|3> }; linkedSemester?: string; linkedLecture?: string; };
+type WorkspaceData = { exams: Exam[]; todos: Todo[]; notes: string; studyPlan?: string; events?: CalendarEvent[]; confidences?: Record<string, number>; examPeriodStart?: string; examPeriodEnd?: string; lectureMeta?: Record<string, LectureMeta>; containers?: string[]; containerMaxCredits?: Record<string, number>; decks?: Deck[]; studySessions?: StudySession[]; };
 
 export default function Workspace() {
   const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS'>('MISSION_CONTROL');
@@ -46,6 +47,36 @@ export default function Workspace() {
 
   // Widget 4: Telemetry
   const [pingData, setPingData] = useState<number[]>([12, 14, 15, 12, 18, 11, 13, 14, 16, 12]);
+
+  // Flashcard Media Processor
+  const processHtml = (html: string) => {
+     if (!html) return '';
+     return html.replace(/src=['"]([^'"]+)['"]/gi, (match, src) => {
+         if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('/api/media')) return match;
+         return `src="/api/media?file=${encodeURIComponent(src)}"`;
+     });
+  };
+
+  // Flashcard State
+  const [flashcardTab, setFlashcardTab] = useState<'SESSIONS' | 'LIBRARY'>('SESSIONS');
+  const [sessionBuilder, setSessionBuilder] = useState<StudySession | null>(null);
+  const [expandedDecks, setExpandedDecks] = useState<Record<string, boolean>>({});
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessionStudyFilter, setSessionStudyFilter] = useState<'ALL' | 'HARD' | 'EASY' | null>(null);
+  const [cramQueue, setCramQueue] = useState<Flashcard[]>([]);
+  const [activeDeckId, setActiveDeckId] = useState<string | null>(null);
+  const [studyMode, setStudyMode] = useState<boolean>(false);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [editingCard, setEditingCard] = useState<{ id?: string, front: string, back: string } | null>(null);
+  const [importModalData, setImportModalData] = useState<{ semester: string, lecture: string } | null>(null);
+  const [importModalText, setImportModalText] = useState('');
+  const [importModalFile, setImportModalFile] = useState<File | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [availableDecks, setAvailableDecks] = useState<{path: string, name: string, semester: string, lecture: string}[]>([]);
+  const [deckSettingsModal, setDeckSettingsModal] = useState<{ isOpen: boolean, deckId?: string, defaultSemester?: string, defaultLecture?: string } | null>(null);
+  const [editingPreview, setEditingPreview] = useState(false);
+  const [searchCardQuery, setSearchCardQuery] = useState('');
 
   // Mission Control Data
   const [promptData, setPromptData] = useState<{ message: string, defaultVal: string, resolve: (val: string | null) => void } | null>(null);
@@ -194,6 +225,17 @@ export default function Workspace() {
          if (!d.events) d.events = [];
          if (!d.confidences) d.confidences = {};
          setData(d);
+         
+         const existingDeckNames = (d.decks || []).map((deck: Deck) => deck.name);
+         fetch('/api/scan-apkg', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ existingDeckNames })
+         }).then(res => res.json()).then(resData => {
+             if (resData.available && resData.available.length > 0) {
+                 setAvailableDecks(resData.available);
+             }
+         }).catch(console.error);
       });
   }, []);
 
@@ -216,6 +258,34 @@ export default function Workspace() {
       const clamped = Math.max(0, Math.min(100, val));
       const newData = { ...data, confidences: { ...(data.confidences || {}), [path]: clamped } };
       saveData(newData);
+  };
+
+  const getCalculatedConfidence = (examLink: string) => {
+      const parts = examLink.split('/');
+      if (parts.length < 2) return null;
+      const semester = parts[0];
+      const lecture = parts[1];
+      
+      const relatedSessions = (data.studySessions || []).filter(s => s.linkedSemester === semester && s.linkedLecture === lecture && s.cramState?.cardRatings);
+      
+      if (relatedSessions.length === 0) return null;
+      
+      let totalScore = 0;
+      let totalCards = 0;
+      
+      for (const session of relatedSessions) {
+          const ratings = Object.values(session.cramState!.cardRatings);
+          for (const val of ratings) {
+              if (val === 3) totalScore += 100;
+              else if (val === 2) totalScore += 75;
+              else if (val === 1) totalScore += 50;
+              // 0 adds 0 points
+              totalCards++;
+          }
+      }
+      
+      if (totalCards === 0) return null;
+      return Math.round(totalScore / totalCards);
   };
 
   // -------------------------
@@ -397,14 +467,14 @@ export default function Workspace() {
   const startEditExam = (exam: Exam) => {
     setEditingExamId(exam.id);
     setNewExamName(exam.name);
-    setNewExamDate(exam.date);
+    setNewExamDate(exam.date || '');
     setNewExamLink(exam.link || '');
   };
 
   const cloneExam = (exam: Exam) => {
     setEditingExamId(null);
     setNewExamName(exam.name);
-    setNewExamDate(exam.date);
+    setNewExamDate(exam.date || '');
     setNewExamLink(exam.link || '');
   };
 
@@ -645,25 +715,328 @@ export default function Workspace() {
     setTimeout(() => fetchFiles(currentPath), 2000);
   };
 
-  const handleBufflImport = async () => {
-      const input = await asyncPrompt('Enter Buffl Share Link or paste Raw JSON:');
-      if (!input) return;
-      
+  const handleImportFile = async (ad: {path: string, name: string, semester: string, lecture: string}) => {
+      setImportLoading(true);
       try {
-          const res = await fetch('/api/buffl', {
+          const res = await fetch('/api/import-apkg-file', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ input, targetPath: currentPath })
+              body: JSON.stringify(ad)
           });
-          const data = await res.json();
-          if (res.ok) {
-              await asyncConfirm(data.message);
-          } else {
-              await asyncConfirm(`Error: ${data.error}`);
+          const result = await res.json();
+          if (result.deck) {
+              setData(prev => {
+                  const newDecks = [...(prev.decks || []), result.deck];
+                  const newData = { ...prev, decks: newDecks };
+                  saveData(newData);
+                  return newData;
+              });
+              setAvailableDecks(prev => prev.filter(d => d.path !== ad.path));
           }
       } catch (e) {
           console.error(e);
+      } finally {
+          setImportLoading(false);
       }
+  };
+
+  const handleImportDeckSubmit = async () => {
+      if (!importModalData) return;
+      if (!importModalText && !importModalFile) {
+          await asyncConfirm('Please provide a file or text input.');
+          return;
+      }
+      
+      setImportLoading(true);
+      const formData = new FormData();
+      if (importModalText) formData.append('textData', importModalText);
+      if (importModalFile) formData.append('file', importModalFile);
+      
+      try {
+          const res = await fetch('/api/import-deck', {
+              method: 'POST',
+              body: formData
+          });
+          const dataRes = await res.json();
+          
+          if (res.ok && dataRes.cards && dataRes.cards.length > 0) {
+              setImportModalData(null);
+              setImportModalText('');
+              setImportModalFile(null);
+              
+              const newDeckName = await asyncPrompt('Enter a name for the new deck:', 'Imported Deck');
+              if (!newDeckName) {
+                  setImportLoading(false);
+                  return;
+              }
+              
+              const newDeck: Deck = {
+                 id: Date.now().toString(),
+                 name: newDeckName,
+                 linkedSemester: importModalData.semester,
+                 linkedLecture: importModalData.lecture,
+                 cards: dataRes.cards
+              };
+              
+              const newDecks = [...(data.decks || []), newDeck];
+              setData({ ...data, decks: newDecks });
+              saveData({ ...data, decks: newDecks });
+              
+              await asyncConfirm(dataRes.message);
+          } else {
+              await asyncConfirm(`Error: ${dataRes.error || 'No cards parsed.'}`);
+          }
+      } catch (e) {
+          console.error(e);
+          await asyncConfirm('Error importing deck.');
+      } finally {
+          setImportLoading(false);
+      }
+  };
+
+  const handleScoreCard = (deckId: string, cardId: string, score: number) => {
+     let newData = { ...data };
+     const decks = [...(newData.decks || [])];
+     const dIdx = decks.findIndex(d => d.id === deckId);
+     if (dIdx === -1) return;
+     
+     const cards = [...decks[dIdx].cards];
+     const cIdx = cards.findIndex(c => c.id === cardId);
+     if (cIdx === -1) return;
+     
+     const card = { ...cards[cIdx] };
+     
+     if (score === 0) {
+         card.interval = 0;
+         card.ease = Math.max(1.3, (card.ease || 2.5) - 0.2);
+     } else {
+         if ((card.interval || 0) === 0) {
+             card.interval = 1;
+         } else if (card.interval === 1) {
+             card.interval = 6;
+         } else {
+             card.interval = Math.round((card.interval || 6) * (card.ease || 2.5) * (score === 3 ? 1.3 : score === 1 ? 0.8 : 1.0));
+         }
+         card.ease = (card.ease || 2.5) + (score === 3 ? 0.15 : score === 1 ? -0.15 : 0);
+     }
+     
+     const nextReview = new Date();
+     nextReview.setDate(nextReview.getDate() + (card.interval || 0));
+     card.nextReview = nextReview.toISOString();
+     
+     cards[cIdx] = card;
+     decks[dIdx].cards = cards;
+     newData.decks = decks;
+     
+     setData(newData);
+     saveData(newData);
+     
+     setShowAnswer(false);
+     setCurrentCardIndex(prev => prev + 1);
+  };
+
+  const handleCreateDeck = (semester: string, lecture: string) => {
+      setDeckSettingsModal({ isOpen: true, defaultSemester: semester, defaultLecture: lecture });
+  };
+
+  const handleSaveDeckSettings = (deckId: string | undefined, name: string, semester: string, lecture: string) => {
+      let newData = { ...data };
+      const decks = [...(newData.decks || [])];
+      
+      if (deckId) {
+          const dIdx = decks.findIndex(d => d.id === deckId);
+          if (dIdx !== -1) {
+              decks[dIdx] = { ...decks[dIdx], name, linkedSemester: semester, linkedLecture: lecture };
+          }
+      } else {
+          decks.push({ id: Date.now().toString(), name, linkedSemester: semester, linkedLecture: lecture, cards: [] });
+      }
+      
+      newData.decks = decks;
+      setData(newData);
+      saveData(newData);
+      setDeckSettingsModal(null);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>, field: 'front' | 'back') => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+              e.preventDefault();
+              const file = items[i].getAsFile();
+              if (!file) continue;
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                  const base64 = event.target?.result;
+                  if (typeof base64 === 'string') {
+                      setEditingCard(prev => prev ? { ...prev, [field]: prev[field] + `<img src="${base64}" style="max-width:100%" />` } : prev);
+                  }
+              };
+              reader.readAsDataURL(file);
+          }
+      }
+  };
+
+  const handleSaveSession = (session: StudySession) => {
+      let newSessions = [...(data.studySessions || [])];
+      
+      // Infer semester and lecture from the first selected deck
+      if (session.deckIds && session.deckIds.length > 0) {
+          const firstDeck = (data.decks || []).find(d => d.id === session.deckIds[0]);
+          if (firstDeck) {
+              session.linkedSemester = firstDeck.linkedSemester;
+              session.linkedLecture = firstDeck.linkedLecture;
+          }
+      }
+      
+      const idx = newSessions.findIndex(s => s.id === session.id);
+      if (idx >= 0) newSessions[idx] = session;
+      else newSessions.push(session);
+      
+      const newData = { ...data, studySessions: newSessions };
+      setData(newData);
+      saveData(newData);
+      setSessionBuilder(null);
+  };
+
+  const handleDeleteSession = (id: string) => {
+      let newSessions = (data.studySessions || []).filter(s => s.id !== id);
+      const newData = { ...data, studySessions: newSessions };
+      setData(newData);
+      saveData(newData);
+  };
+
+  const prepareCramQueue = (session: StudySession, filter: 'ALL' | 'HARD' | 'EASY') => {
+      let allCards: Flashcard[] = [];
+      const deckMap = new Map((data.decks || []).map(d => [d.id, d]));
+      
+      session.deckIds.forEach(dId => {
+          const deck = deckMap.get(dId);
+          if (deck) allCards = allCards.concat(deck.cards);
+      });
+      
+      const uniqueCardsMap = new Map<string, Flashcard>();
+      allCards.forEach(c => uniqueCardsMap.set(c.id, c));
+      
+      session.cardIds.forEach(cId => {
+          (data.decks || []).forEach(d => {
+              const c = d.cards.find(x => x.id === cId);
+              if (c) uniqueCardsMap.set(cId, c);
+          });
+      });
+      
+      let finalCards = Array.from(uniqueCardsMap.values());
+      const ratings = session.cramState?.cardRatings || {};
+      
+      if (filter === 'HARD') {
+          finalCards = finalCards.filter(c => {
+             const r = ratings[c.id];
+             return r === undefined || r === 0 || r === 1;
+          });
+      } else if (filter === 'EASY') {
+          finalCards = finalCards.filter(c => {
+             const r = ratings[c.id];
+             return r === 2 || r === 3;
+          });
+      }
+      
+      finalCards.sort(() => Math.random() - 0.5);
+      
+      setCramQueue(finalCards.slice(0, session.batchSize));
+      setCurrentCardIndex(0);
+      setShowAnswer(false);
+      setSessionStudyFilter(filter);
+      setActiveSessionId(session.id);
+  };
+  
+  const handleRateCramCard = (score: number) => {
+      if (!activeSessionId) return;
+      const session = (data.studySessions || []).find(s => s.id === activeSessionId);
+      if (!session) return;
+      
+      const currentCard = cramQueue[currentCardIndex];
+      const newRatings = { ...(session.cramState?.cardRatings || {}) };
+      newRatings[currentCard.id] = score as any;
+      
+      const newSession = { ...session, cramState: { cardRatings: newRatings } };
+      let newSessions = [...(data.studySessions || [])];
+      const idx = newSessions.findIndex(s => s.id === session.id);
+      if (idx >= 0) newSessions[idx] = newSession;
+      
+      const newData = { ...data, studySessions: newSessions };
+      setData(newData);
+      saveData(newData);
+      
+      if (currentCardIndex + 1 < cramQueue.length) {
+          setCurrentCardIndex(currentCardIndex + 1);
+          setShowAnswer(false);
+      } else {
+          setCurrentCardIndex(currentCardIndex + 1);
+      }
+  };
+
+  const handleSaveCard = () => {
+      if (!activeDeckId || !editingCard || !editingCard.front.trim() || !editingCard.back.trim()) return;
+      let newData = { ...data };
+      const decks = [...(newData.decks || [])];
+      const dIdx = decks.findIndex(d => d.id === activeDeckId);
+      if (dIdx === -1) return;
+      
+      const cards = [...decks[dIdx].cards];
+      if (editingCard.id) {
+          const cIdx = cards.findIndex(c => c.id === editingCard.id);
+          if (cIdx !== -1) {
+              cards[cIdx] = { ...cards[cIdx], front: editingCard.front, back: editingCard.back };
+          }
+      } else {
+          cards.push({
+              id: Date.now().toString(),
+              front: editingCard.front,
+              back: editingCard.back,
+              ease: 2.5,
+              interval: 0,
+              nextReview: new Date().toISOString()
+          });
+      }
+      
+      decks[dIdx].cards = cards;
+      newData.decks = decks;
+      setData(newData);
+      saveData(newData);
+      setEditingCard(null);
+  };
+  
+  const handleDeleteCard = (cardId: string) => {
+      if (!activeDeckId) return;
+      let newData = { ...data };
+      const decks = [...(newData.decks || [])];
+      const dIdx = decks.findIndex(d => d.id === activeDeckId);
+      if (dIdx === -1) return;
+      decks[dIdx].cards = decks[dIdx].cards.filter(c => c.id !== cardId);
+      newData.decks = decks;
+      setData(newData);
+      saveData(newData);
+  };
+
+  const handleMoveCard = (cardId: string, newDeckId: string) => {
+      if (!activeDeckId || activeDeckId === newDeckId) return;
+      let newData = { ...data };
+      const decks = [...(newData.decks || [])];
+      
+      const sourceDIdx = decks.findIndex(d => d.id === activeDeckId);
+      const targetDIdx = decks.findIndex(d => d.id === newDeckId);
+      if (sourceDIdx === -1 || targetDIdx === -1) return;
+      
+      const cardIdx = decks[sourceDIdx].cards.findIndex(c => c.id === cardId);
+      if (cardIdx === -1) return;
+      
+      const [cardToMove] = decks[sourceDIdx].cards.splice(cardIdx, 1);
+      decks[targetDIdx].cards.push(cardToMove);
+      
+      newData.decks = decks;
+      setData(newData);
+      saveData(newData);
   };
 
   const navigateToLink = (link: string) => {
@@ -1059,7 +1432,7 @@ export default function Workspace() {
                                   SYSTEM WARNING: {exam.name.toUpperCase()} IN {exam.daysLeft} DAYS
                               </div>
                               <div style={{ color: 'var(--text)', fontSize: '0.85rem' }}>
-                                  {getJoke(exam.name, exam.daysLeft, i, exam.link)}
+                                  {getJoke(exam.name, exam.daysLeft, i, exam.link || '')}
                               </div>
                           </div>
                       </div>
@@ -1102,6 +1475,7 @@ export default function Workspace() {
                                       <th style={{ padding: '8px' }}>Credits</th>
                                       <th style={{ padding: '8px' }}>Grade</th>
                                       <th style={{ padding: '8px' }}>Container</th>
+                                      <th style={{ padding: '8px' }}>Study Materials</th>
                                   </tr>
                               </thead>
                               <tbody>
@@ -1130,6 +1504,45 @@ export default function Workspace() {
                                                       <option value="">- Uncategorized -</option>
                                                       {(data.containers || []).map(c => <option key={c} value={c}>{c}</option>)}
                                                   </select>
+                                              </td>
+                                              <td style={{ padding: '8px' }}>
+                                                  {(() => {
+                                                      const lectureDecks = (data.decks || []).filter(d => d.linkedSemester === l.semester && d.linkedLecture === l.name);
+                                                      return (
+                                                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                              {lectureDecks.length > 0 ? (
+                                                                  <span style={{ fontSize: '0.8rem', color: 'var(--subtle)' }}>{lectureDecks.length} Decks</span>
+                                                              ) : null}
+                                                              {lectureDecks.length > 0 && (
+                                                                  <button 
+                                                                      className="button"
+                                                                      style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--gold)', color: 'var(--gold)' }}
+                                                                      onClick={() => {
+                                                                          const newSession = {
+                                                                              id: Date.now().toString(),
+                                                                              name: `${l.name} Cram`,
+                                                                              mode: 'cram' as const,
+                                                                              deckIds: lectureDecks.map(d => d.id),
+                                                                              cardIds: [],
+                                                                              batchSize: 20,
+                                                                              linkedSemester: l.semester,
+                                                                              linkedLecture: l.name
+                                                                          };
+                                                                          let newSessions = [...(data.studySessions || []), newSession];
+                                                                          const newData = { ...data, studySessions: newSessions };
+                                                                          setData(newData);
+                                                                          saveData(newData);
+                                                                          setActiveTab('FLASHCARDS');
+                                                                          setFlashcardTab('SESSIONS');
+                                                                          prepareCramQueue(newSession, 'ALL');
+                                                                      }}
+                                                                  >
+                                                                      + QUICK SESSION
+                                                                  </button>
+                                                              )}
+                                                          </div>
+                                                      );
+                                                  })()}
                                               </td>
                                           </tr>
                                       );
@@ -1173,6 +1586,7 @@ export default function Workspace() {
                                       <th style={{ padding: '8px' }}>Category</th>
                                       <th style={{ padding: '8px' }}>Credits</th>
                                       <th style={{ padding: '8px' }}>Grade</th>
+                                      <th style={{ padding: '8px' }}>Study Materials</th>
                                   </tr>
                               </thead>
                               <tbody>
@@ -1195,6 +1609,45 @@ export default function Workspace() {
                                           </td>
                                           <td style={{ padding: '8px' }}>
                                               <input type="text" value={l.meta.grade || ''} onChange={e => updateLectureMeta(l.path, { grade: e.target.value })} style={{ width: '60px', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none' }} placeholder="e.g. 1.0" />
+                                          </td>
+                                          <td style={{ padding: '8px' }}>
+                                              {(() => {
+                                                  const lectureDecks = (data.decks || []).filter(d => d.linkedSemester === l.semester && d.linkedLecture === l.name);
+                                                  return (
+                                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                          {lectureDecks.length > 0 ? (
+                                                              <span style={{ fontSize: '0.8rem', color: 'var(--subtle)' }}>{lectureDecks.length} Decks</span>
+                                                          ) : null}
+                                                          {lectureDecks.length > 0 && (
+                                                              <button 
+                                                                  className="button"
+                                                                  style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--gold)', color: 'var(--gold)' }}
+                                                                  onClick={() => {
+                                                                      const newSession = {
+                                                                          id: Date.now().toString(),
+                                                                          name: `${l.name} Cram`,
+                                                                          mode: 'cram' as const,
+                                                                          deckIds: lectureDecks.map(d => d.id),
+                                                                          cardIds: [],
+                                                                          batchSize: 20,
+                                                                          linkedSemester: l.semester,
+                                                                          linkedLecture: l.name
+                                                                      };
+                                                                      let newSessions = [...(data.studySessions || []), newSession];
+                                                                      const newData = { ...data, studySessions: newSessions };
+                                                                      setData(newData);
+                                                                      saveData(newData);
+                                                                      setActiveTab('FLASHCARDS');
+                                                                      setFlashcardTab('SESSIONS');
+                                                                      prepareCramQueue(newSession, 'ALL');
+                                                                  }}
+                                                              >
+                                                                  + QUICK SESSION
+                                                              </button>
+                                                          )}
+                                                      </div>
+                                                  );
+                                              })()}
                                           </td>
                                       </tr>
                                   ))}
@@ -1493,6 +1946,11 @@ export default function Workspace() {
                    const contextExams = data.exams.filter(e => currentPath === e.link || currentPath.startsWith(e.link + '/'));
                    const contextTodos = data.todos.filter(t => currentPath === t.link || (t.link && currentPath.startsWith(t.link + '/')));
                    
+                   const currentSemester = currentPath.split('/')[0];
+                   const currentLectureName = currentPath.split('/')[1];
+                   const contextSessions = (data.studySessions || []).filter(s => s.linkedSemester === currentSemester && s.linkedLecture === currentLectureName);
+                   const contextDecks = (data.decks || []).filter(d => d.linkedSemester === currentSemester && d.linkedLecture === currentLectureName);
+
                    return (
                      <>
                         <div style={{ marginBottom: '20px', background: 'var(--base)', border: '1px solid var(--muted)', padding: '10px' }}>
@@ -1513,17 +1971,84 @@ export default function Workspace() {
 
                         {/* Exams */}
                         {contextExams.map(exam => {
-                           const daysLeft = Math.ceil((new Date(exam.date).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                           const daysLeft = Math.ceil((new Date(exam.date || '').getTime() - new Date().getTime()) / (1000 * 3600 * 24));
                            return (
                              <div key={`ctx-ex-${exam.id}`} style={{ marginBottom: '15px', background: 'var(--base)', border: '1px solid var(--love)', padding: '10px' }}>
                                 <div style={{ color: 'var(--love)', fontWeight: 'bold', marginBottom: '5px' }}>EXAM: {exam.name}</div>
                                 <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '5px' }}>Date: {exam.date}</div>
-                                <div style={{ color: daysLeft < 7 ? 'var(--love)' : 'var(--pine)', fontSize: '0.9rem' }}>T-Minus {daysLeft} Days</div>
-                                <div style={{ color: 'var(--text)', marginTop: '5px', fontSize: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden' }}>{renderProgressBar(daysLeft, 30)}</div>
+                                <div style={{ color: (daysLeft ?? 0) < 7 ? 'var(--love)' : 'var(--pine)', fontSize: '0.9rem' }}>T-Minus {daysLeft} Days</div>
+                                <div style={{ color: 'var(--text)', marginTop: '5px', fontSize: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden' }}>{renderProgressBar(daysLeft ?? 0, 30)}</div>
                              </div>
                            );
                         })}
                         {contextExams.length === 0 && <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '15px' }}>No exams mapped to this path.</div>}
+
+                        {/* Flashcards */}
+                        {currentSemester && currentLectureName && (
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
+                               <div style={{ color: 'var(--gold)', fontWeight: 'bold', fontSize: '0.9rem' }}>STUDY SESSIONS</div>
+                               {contextDecks.length > 0 && (
+                                   <button className="button" style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--gold)', borderColor: 'var(--gold)' }} onClick={() => {
+                                       const newSession = {
+                                           id: Date.now().toString(),
+                                           name: `${currentLectureName} Cram`,
+                                           mode: 'cram' as const,
+                                           deckIds: contextDecks.map(d => d.id),
+                                           cardIds: [],
+                                           batchSize: 20,
+                                           linkedSemester: currentSemester,
+                                           linkedLecture: currentLectureName
+                                       };
+                                       let newSessions = [...(data.studySessions || []), newSession];
+                                       const newData = { ...data, studySessions: newSessions };
+                                       setData(newData);
+                                       saveData(newData);
+                                       setActiveTab('FLASHCARDS');
+                                       setFlashcardTab('SESSIONS');
+                                       prepareCramQueue(newSession, 'ALL');
+                                   }}>+ NEW CRAM</button>
+                               )}
+                           </div>
+                        )}
+                        {contextSessions.map(session => {
+                            let confScore = null;
+                            let rated = 0;
+                            if (session.cramState?.cardRatings) {
+                                const ratings = Object.values(session.cramState.cardRatings);
+                                rated = ratings.length;
+                                if (rated > 0) {
+                                    let score = 0;
+                                    ratings.forEach(r => {
+                                        if (r === 1) score += 50;
+                                        if (r === 2) score += 75;
+                                        if (r === 3) score += 100;
+                                    });
+                                    confScore = Math.round(score / rated);
+                                }
+                            }
+
+                            return (
+                               <div key={`ctx-sess-${session.id}`} style={{ marginBottom: '10px', background: 'var(--base)', border: '1px solid var(--muted)', padding: '10px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                     <div style={{ color: 'var(--text)', fontWeight: 'bold' }}>{session.name}</div>
+                                     <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--iris)', borderColor: 'var(--iris)' }} onClick={() => {
+                                         setActiveTab('FLASHCARDS');
+                                         setFlashcardTab('SESSIONS');
+                                         prepareCramQueue(session, 'ALL');
+                                     }}>STUDY</button>
+                                  </div>
+                                  <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>Decks: {session.deckIds.length} | Batch: {session.batchSize}</div>
+                                  {rated > 0 && (
+                                     <div style={{ marginTop: '5px', color: getConfidenceColor(confScore || 0), fontSize: '0.8rem', fontWeight: 'bold' }}>
+                                        Mastery: {confScore}% ({rated} Rated)
+                                     </div>
+                                  )}
+                               </div>
+                            );
+                        })}
+                        {currentSemester && currentLectureName && contextSessions.length === 0 && contextDecks.length > 0 && (
+                            <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '15px' }}>No active sessions, but decks are available.</div>
+                        )}
 
                         {/* Tasks */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
@@ -1627,6 +2152,10 @@ export default function Workspace() {
                      const examDate = exam.date ? new Date(exam.date).getTime() : null;
                      const today = new Date().getTime();
                      const daysLeft = examDate ? Math.ceil((examDate - today) / (1000 * 3600 * 24)) : null;
+                     const autoConf = exam.link ? getCalculatedConfidence(exam.link) : null;
+                     const examParts = exam.link ? exam.link.split('/') : [];
+                     const activeSessions = (data.studySessions || []).filter(s => examParts.length >= 2 && s.linkedSemester === examParts[0] && s.linkedLecture === examParts[1]);
+
                      return (
                         <div key={exam.id} style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '15px', background: 'var(--base)', position: 'relative' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--gold)', marginBottom: '5px' }}>
@@ -1635,15 +2164,31 @@ export default function Workspace() {
                                {exam.link && (() => {
                                    const conf = data.confidences?.[exam.link] ?? null;
                                    const color = conf !== null ? getConfidenceColor(conf) : 'var(--muted)';
+                                   const autoColor = autoConf !== null ? getConfidenceColor(autoConf) : 'var(--muted)';
                                    return (
-                                       <span 
-                                           onClick={async (e) => { e.stopPropagation(); const val = await asyncPrompt(`Set confidence for ${exam.name} (0-100):`, conf !== null ? conf.toString() : '0');
-                                               if (val !== null) updateConf(exam.link!, parseInt(val) || 0);
-                                           }}
-                                           style={{ color: color, fontSize: '0.7rem', border: `1px solid ${color}`, padding: '1px 4px', borderRadius: '3px', cursor: 'pointer' }}
-                                           title="Edit Confidence"
-                                       >
-                                           {conf !== null ? `${conf}% CONF` : '--% CONF'}
+                                       <span style={{ display: 'flex', gap: '5px' }}>
+                                           <span 
+                                               onClick={async (e) => { e.stopPropagation(); const val = await asyncPrompt(`Set confidence for ${exam.name} (0-100):`, conf !== null ? conf.toString() : '0');
+                                                   if (val !== null) updateConf(exam.link!, parseInt(val) || 0);
+                                               }}
+                                               style={{ color: color, fontSize: '0.7rem', border: `1px solid ${color}`, padding: '1px 4px', borderRadius: '3px', cursor: 'pointer' }}
+                                               title="Edit Manual Confidence"
+                                           >
+                                               {conf !== null ? `${conf}% CONF` : '--% CONF'}
+                                           </span>
+                                           {autoConf !== null && (
+                                               <span 
+                                                   style={{ color: autoColor, fontSize: '0.7rem', border: `1px solid ${autoColor}`, padding: '1px 4px', borderRadius: '3px' }}
+                                                   title="Auto Confidence from Flashcards"
+                                               >
+                                                   AUTO: {autoConf}%
+                                               </span>
+                                           )}
+                                           {activeSessions.length > 0 && (
+                                               <span style={{ color: 'var(--iris)', fontSize: '0.7rem', border: `1px solid var(--iris)`, padding: '1px 4px', borderRadius: '3px', cursor: 'pointer' }} onClick={() => { setActiveTab('FLASHCARDS'); setFlashcardTab('SESSIONS'); }}>
+                                                   {activeSessions.length} SESSIONS
+                                               </span>
+                                           )}
                                        </span>
                                    );
                                })()}
@@ -1655,8 +2200,8 @@ export default function Workspace() {
                               <span style={{ color: 'var(--love)', cursor: 'pointer' }} onClick={() => handleDeleteExam(exam.id)} title="Delete Exam">[X]</span>
                             </div>
                           </div>
-                          <div style={{ color: daysLeft < 7 ? 'var(--love)' : 'var(--pine)' }}>
-                            {renderProgressBar(daysLeft)}
+                          <div style={{ color: (daysLeft ?? 0) < 7 ? 'var(--love)' : 'var(--pine)', fontWeight: 'bold' }}>
+                            {renderProgressBar(daysLeft ?? 0)}
                           </div>
                           {exam.link && (
                             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
@@ -1666,6 +2211,15 @@ export default function Workspace() {
                                 <button className="link-button" onClick={() => fetch('/api/open', { method: 'POST', body: JSON.stringify({ filePath: exam.link, type: 'xournal' }) })} style={{ fontSize: '0.85rem', borderColor: 'var(--pine)', color: 'var(--pine)' }}>
                                   &gt; LAUNCH NOTES
                                 </button>
+                                {activeSessions.length > 0 && (
+                                   <button className="link-button" onClick={() => { 
+                                       setActiveTab('FLASHCARDS'); 
+                                       setFlashcardTab('SESSIONS'); 
+                                       prepareCramQueue(activeSessions[0], 'ALL'); 
+                                   }} style={{ fontSize: '0.85rem', borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                                     &gt; QUICK STUDY
+                                   </button>
+                                )}
                             </div>
                           )}
                         </div>
@@ -1845,28 +2399,489 @@ export default function Workspace() {
         )}
 
         {activeTab === 'FLASHCARDS' && (
-          <div className="flashcards-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--subtle)' }}>
-              <h2 style={{ color: 'var(--gold)', marginBottom: '10px' }}>&gt; FLASHCARD ENGINE [OFFLINE]</h2>
-              <div style={{ textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
-                  <p>The spaced-repetition neural net is currently offline.</p>
-                  <p style={{ marginTop: '10px' }}>This module is prepared for future integration. It will allow you to link dedicated Flashcard Decks directly to your specific lecture directories, automatically scheduling reviews based on your upcoming exams.</p>
-                  
-                  <div style={{ marginTop: '30px' }}>
-                     <button className="button" style={{ borderColor: 'var(--foam)', color: 'var(--foam)', padding: '10px 20px', fontSize: '1rem', fontWeight: 'bold' }} onClick={handleBufflImport}>
-                         + IMPORT FROM BUFFL (BETA)
-                     </button>
+          <div className="flashcards-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', color: 'var(--text)' }}>
+              {(!activeDeckId && !activeSessionId && !sessionBuilder && !studyMode) && (
+                  <div style={{ display: 'flex', padding: '10px 20px', borderBottom: '1px solid var(--muted)', gap: '20px' }}>
+                      <div style={{ cursor: 'pointer', color: flashcardTab === 'SESSIONS' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'SESSIONS' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('SESSIONS')}>STUDY SESSIONS</div>
+                      <div style={{ cursor: 'pointer', color: flashcardTab === 'LIBRARY' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'LIBRARY' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('LIBRARY')}>DECK LIBRARY</div>
                   </div>
+              )}
+              
+              {activeSessionId ? (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                      {(() => {
+                          const session = (data.studySessions || []).find(s => s.id === activeSessionId);
+                          if (!session) return null;
+                          
+                          if (currentCardIndex >= cramQueue.length) {
+                              return (
+                                  <div style={{ textAlign: 'center' }}>
+                                      <h2 style={{ color: 'var(--pine)', marginBottom: '20px' }}>Batch Complete!</h2>
+                                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                                          <button className="button" onClick={() => prepareCramQueue(session, sessionStudyFilter || 'ALL')} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>Continue Next Batch</button>
+                                          <button className="button" onClick={() => { setActiveSessionId(null); setCramQueue([]); }} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>Stop Studying</button>
+                                      </div>
+                                  </div>
+                              );
+                          }
+                          
+                          const card = cramQueue[currentCardIndex];
+                          const progress = Math.round((currentCardIndex / cramQueue.length) * 100);
+                          
+                          return (
+                              <div style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--subtle)', fontSize: '0.9rem' }}>
+                                      <span>Session: {session.name}</span>
+                                      <span>Card {currentCardIndex + 1} / {cramQueue.length}</span>
+                                  </div>
+                                  <div style={{ width: '100%', height: '4px', background: 'var(--surface)', borderRadius: '2px' }}>
+                                      <div style={{ width: `${progress}%`, height: '100%', background: 'var(--pine)', borderRadius: '2px', transition: 'width 0.3s' }} />
+                                  </div>
+                                  
+                                  <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '40px', borderRadius: '8px', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} />
+                                  
+                                  {!showAnswer ? (
+                                      <button className="button" onClick={() => setShowAnswer(true)} style={{ color: 'var(--gold)', borderColor: 'var(--gold)', padding: '10px' }}>Show Answer</button>
+                                  ) : (
+                                      <>
+                                          <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} style={{ background: 'var(--surface)', border: '1px solid var(--gold)', padding: '40px', borderRadius: '8px', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} />
+                                          <div style={{ display: 'flex', gap: '10px' }}>
+                                              <button className="button" onClick={() => handleRateCramCard(0)} style={{ flex: 1, borderColor: 'var(--love)', color: 'var(--love)' }}>Again</button>
+                                              <button className="button" onClick={() => handleRateCramCard(1)} style={{ flex: 1, borderColor: 'var(--rose)', color: 'var(--rose)' }}>Hard</button>
+                                              <button className="button" onClick={() => handleRateCramCard(2)} style={{ flex: 1, borderColor: 'var(--pine)', color: 'var(--pine)' }}>Good</button>
+                                              <button className="button" onClick={() => handleRateCramCard(3)} style={{ flex: 1, borderColor: 'var(--foam)', color: 'var(--foam)' }}>Easy</button>
+                                          </div>
+                                      </>
+                                  )}
+                                  
+                                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                                      <button className="button" onClick={() => { setActiveSessionId(null); setCramQueue([]); }} style={{ color: 'var(--muted)', borderColor: 'transparent' }}>Abort Session</button>
+                                  </div>
+                              </div>
+                          );
+                      })()}
+                  </div>
+              ) : sessionBuilder ? (
+                  <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; SESSION BUILDER</h2>
+                          <button className="button" onClick={() => setSessionBuilder(null)} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>Cancel</button>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '600px' }}>
+                          <div>
+                              <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Session Name</label>
+                              <input value={sessionBuilder.name} onChange={e => setSessionBuilder({ ...sessionBuilder, name: e.target.value })} placeholder="e.g. Midterm Cram" style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '20px' }}>
+                              <div style={{ flex: 1 }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Mode</label>
+                                  <select value={sessionBuilder.mode} onChange={e => setSessionBuilder({ ...sessionBuilder, mode: e.target.value as any })} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }}>
+                                      <option value="cram">Cramming (Isolated)</option>
+                                      <option value="spaced">Spaced Repetition</option>
+                                  </select>
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Batch Size</label>
+                                  <input type="number" value={sessionBuilder.batchSize} onChange={e => setSessionBuilder({ ...sessionBuilder, batchSize: parseInt(e.target.value) || 20 })} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
+                              </div>
+                          </div>
+                          
+                          <div style={{ marginTop: '20px' }}>
+                              <h3 style={{ color: 'var(--iris)', borderBottom: '1px solid var(--muted)', paddingBottom: '10px' }}>Include Decks & Cards</h3>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
+                                  {(data.decks || []).filter(deck => !selectedSemester || deck.linkedSemester === selectedSemester).map(deck => {
+                                      const isDeckSelected = sessionBuilder.deckIds.includes(deck.id);
+                                      const expanded = expandedDecks[deck.id];
+                                      const selectedCardsCount = deck.cards.filter(c => sessionBuilder.cardIds.includes(c.id)).length;
+                                      
+                                      return (
+                                          <div key={deck.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                  <button className="button" style={{ padding: '2px 8px', fontSize: '0.8rem', background: 'transparent', borderColor: 'var(--muted)', color: 'var(--text)' }} onClick={() => setExpandedDecks({...expandedDecks, [deck.id]: !expanded})}>
+                                                      {expanded ? '▼' : '▶'}
+                                                  </button>
+                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
+                                                      <input 
+                                                          type="checkbox" 
+                                                          checked={isDeckSelected} 
+                                                          onChange={e => {
+                                                              let newDeckIds = [...sessionBuilder.deckIds];
+                                                              let newCardIds = [...sessionBuilder.cardIds];
+                                                              
+                                                              if (e.target.checked) {
+                                                                  newDeckIds.push(deck.id);
+                                                                  // Remove individual card selections if whole deck is selected
+                                                                  newCardIds = newCardIds.filter(id => !deck.cards.find(c => c.id === id));
+                                                              } else {
+                                                                  newDeckIds = newDeckIds.filter(id => id !== deck.id);
+                                                              }
+                                                              setSessionBuilder({ ...sessionBuilder, deckIds: newDeckIds, cardIds: newCardIds });
+                                                          }} 
+                                                      />
+                                                      <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{deck.name}</span>
+                                                      <span style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>({deck.cards.length} cards{selectedCardsCount > 0 && !isDeckSelected ? `, ${selectedCardsCount} selected` : ''})</span>
+                                                  </label>
+                                              </div>
+                                              
+                                              {expanded && (
+                                                  <div style={{ paddingLeft: '40px', display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
+                                                      {deck.cards.map((card, i) => (
+                                                          <label key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', opacity: isDeckSelected ? 0.5 : 1 }}>
+                                                              <input 
+                                                                  type="checkbox"
+                                                                  disabled={isDeckSelected}
+                                                                  checked={isDeckSelected || sessionBuilder.cardIds.includes(card.id)}
+                                                                  onChange={e => {
+                                                                      if (isDeckSelected) return;
+                                                                      let newCardIds = [...sessionBuilder.cardIds];
+                                                                      if (e.target.checked) newCardIds.push(card.id);
+                                                                      else newCardIds = newCardIds.filter(id => id !== card.id);
+                                                                      setSessionBuilder({ ...sessionBuilder, cardIds: newCardIds });
+                                                                  }}
+                                                              />
+                                                              <span style={{ color: 'var(--text)', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                  {i + 1}. {card.front.substring(0, 50)}{card.front.length > 50 ? '...' : ''}
+                                                              </span>
+                                                          </label>
+                                                      ))}
+                                                  </div>
+                                              )}
+                                          </div>
+                                      );
+                                  })}
+                                  {(data.decks || []).filter(deck => !selectedSemester || deck.linkedSemester === selectedSemester).length === 0 && <div style={{ color: 'var(--muted)' }}>No decks available for this semester.</div>}
+                              </div>
+                          </div>
+                          
+                          <button className="button" onClick={() => handleSaveSession(sessionBuilder)} style={{ marginTop: '20px', background: 'var(--gold)', color: 'var(--base)', fontWeight: 'bold' }}>Save Session</button>
+                      </div>
+                  </div>
+              ) : flashcardTab === 'SESSIONS' && !activeDeckId ? (
+                  <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; STUDY SESSIONS</h2>
+                          <button className="button" onClick={() => setSessionBuilder({ id: Date.now().toString(), name: 'New Session', mode: 'cram', deckIds: [], cardIds: [], batchSize: 20 })} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>+ NEW SESSION</button>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                          {(data.studySessions || []).filter(s => !selectedSemester || s.linkedSemester === selectedSemester).map(session => (
+                              <div key={session.id} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                      <strong style={{ color: 'var(--pine)', fontSize: '1.2rem' }}>{session.name}</strong>
+                                      <span style={{ fontSize: '0.7rem', background: 'var(--surface)', padding: '2px 6px', borderRadius: '4px', color: 'var(--gold)' }}>{session.mode.toUpperCase()}</span>
+                                  </div>
+                                  <div style={{ color: 'var(--subtle)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                                      Decks: {session.deckIds.length} | Batch Size: {session.batchSize}
+                                      {session.linkedLecture && <div style={{ marginTop: '5px', color: 'var(--iris)' }}>Lecture: {session.linkedLecture}</div>}
+                                      {(() => {
+                                          if (!session.cramState || !session.cramState.cardRatings) return null;
+                                          const ratings = Object.values(session.cramState.cardRatings);
+                                          if (ratings.length === 0) return null;
+                                          let counts = { again: 0, hard: 0, good: 0, easy: 0 };
+                                          let score = 0;
+                                          ratings.forEach(r => {
+                                              if (r === 0) counts.again++;
+                                              if (r === 1) { counts.hard++; score += 50; }
+                                              if (r === 2) { counts.good++; score += 75; }
+                                              if (r === 3) { counts.easy++; score += 100; }
+                                          });
+                                          const conf = Math.round(score / ratings.length);
+                                          return (
+                                              <div style={{ marginTop: '10px', padding: '10px', background: 'var(--surface)', borderRadius: '5px', fontSize: '0.8rem' }}>
+                                                  <div style={{ marginBottom: '5px', color: 'var(--text)' }}><strong>Statistics:</strong> {ratings.length} Cards Rated ({conf}% Mastery)</div>
+                                                  <div style={{ display: 'flex', gap: '10px' }}>
+                                                      <span style={{ color: 'var(--love)' }}>Again: {counts.again}</span>
+                                                      <span style={{ color: 'var(--rose)' }}>Hard: {counts.hard}</span>
+                                                      <span style={{ color: 'var(--pine)' }}>Good: {counts.good}</span>
+                                                      <span style={{ color: 'var(--foam)' }}>Easy: {counts.easy}</span>
+                                                  </div>
+                                              </div>
+                                          );
+                                      })()}
+                                  </div>
+                                  
+                                  <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+                                      <button className="button" onClick={async () => {
+                                          const filter = await asyncPrompt('Study Filter: (ALL, HARD, EASY)', 'ALL');
+                                          if (filter && ['ALL', 'HARD', 'EASY'].includes(filter.toUpperCase())) {
+                                              prepareCramQueue(session, filter.toUpperCase() as any);
+                                          }
+                                      }} style={{ flex: 1, borderColor: 'var(--gold)', color: 'var(--gold)' }}>Study</button>
+                                      <button className="button" onClick={() => setSessionBuilder(session)} style={{ borderColor: 'var(--iris)', color: 'var(--iris)' }}>Edit</button>
+                                      <button className="button" onClick={async () => { if (await asyncConfirm('Delete session?')) handleDeleteSession(session.id); }} style={{ borderColor: 'var(--love)', color: 'var(--love)' }}>Del</button>
+                                  </div>
+                              </div>
+                          ))}
+                          {(data.studySessions || []).filter(s => !selectedSemester || s.linkedSemester === selectedSemester).length === 0 && (
+                              <div style={{ color: 'var(--muted)' }}>No study sessions created yet for this semester. Click "+ NEW SESSION" to begin.</div>
+                          )}
+                      </div>
+                  </div>
+              ) : !activeDeckId ? (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; FLASHCARD ENGINE</h2>
+                          {!selectedSemester && <span style={{ color: 'var(--subtle)' }}>Please select a semester in the left sidebar</span>}
+                      </div>
+                      
+                      {selectedSemester && (() => {
+                          const renderCategory = (title: string, lecDecks: Deck[], lecName: string) => (
+                              <div key={title} style={{ marginBottom: '40px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--muted)', paddingBottom: '10px', marginBottom: '15px' }}>
+                                      <h3 style={{ color: 'var(--iris)', margin: 0 }}>{title}</h3>
+                                      <div style={{ display: 'flex', gap: '10px' }}>
+                                          <button className="button" style={{ fontSize: '0.8rem', padding: '4px 10px', borderColor: 'var(--pine)', color: 'var(--pine)' }} onClick={() => handleCreateDeck(selectedSemester, lecName)}>+ NEW DECK</button>
+                                          <button className="button" style={{ fontSize: '0.8rem', padding: '4px 10px', borderColor: 'var(--foam)', color: 'var(--foam)' }} onClick={() => setImportModalData({ semester: selectedSemester, lecture: lecName })}>+ IMPORT DECK</button>
+                                      </div>
+                                  </div>
+                                  
+                                  {lecDecks.length === 0 ? (
+                                      <div style={{ color: 'var(--muted)' }}>No decks in this category.</div>
+                                  ) : (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+                                          {lecDecks.map(deck => {
+                                              const now = new Date();
+                                              const dueCards = deck.cards.filter(c => !c.nextReview || new Date(c.nextReview) <= now);
+                                              return (
+                                                  <div key={deck.id} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '20px', width: '300px', display: 'flex', flexDirection: 'column', borderRadius: '4px', position: 'relative' }}>
+                                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center', gap: '10px' }}>
+                                                          <strong style={{ color: 'var(--pine)', fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{deck.name}</strong>
+                                                          {dueCards.length > 0 ? (
+                                                              <span style={{ background: 'var(--love)', color: 'var(--base)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 'bold', flexShrink: 0 }}>{dueCards.length} DUE</span>
+                                                          ) : (
+                                                              <span style={{ background: 'var(--surface)', color: 'var(--muted)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 'bold', flexShrink: 0 }}>DONE</span>
+                                                          )}
+                                                      </div>
+                                                      <div style={{ color: 'var(--subtle)', marginBottom: '20px' }}>{deck.cards.length} Total Cards</div>
+                                                      <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+                                                          <button className="button" disabled={dueCards.length === 0} onClick={() => { setActiveDeckId(deck.id); setCurrentCardIndex(0); setShowAnswer(false); setStudyMode(true); }} style={{ flex: 1, borderColor: 'var(--gold)', color: 'var(--gold)', opacity: dueCards.length === 0 ? 0.3 : 1 }}>Study Now</button>
+                                                          <button className="button" onClick={() => { setActiveDeckId(deck.id); setStudyMode(false); }} style={{ borderColor: 'var(--iris)', color: 'var(--iris)' }}>Manage</button>
+                                                      </div>
+                                                  </div>
+                                              );
+                                          })}
+                                      </div>
+                                  )}
+                              </div>
+                          );
 
-                  <div style={{ padding: '20px', border: '1px dashed var(--muted)', background: 'var(--hl-low)', marginTop: '20px' }}>
-                      <strong style={{ color: 'var(--pine)' }}>Upcoming Features:</strong>
-                      <ul style={{ textAlign: 'left', marginTop: '10px', marginLeft: '40px', color: 'var(--text)' }}>
-                          <li style={{ marginBottom: '5px' }}>Spaced Repetition System (SRS) Algorithm</li>
-                          <li style={{ marginBottom: '5px' }}>Markdown and LaTeX support for math formulas</li>
-                          <li style={{ marginBottom: '5px' }}>Directory-bound decks automatically mapped to exams</li>
-                          <li>Confidence-level integration for auto-generating cards</li>
-                      </ul>
+                          const blocks = lectures.map(lec => {
+                              const lecDecks = (data.decks || []).filter(d => d.linkedSemester === selectedSemester && d.linkedLecture === lec);
+                              return renderCategory(`📁 ${lec}`, lecDecks, lec);
+                          });
+
+                          const uncategorizedDecks = (data.decks || []).filter(d => d.linkedSemester === selectedSemester && (!d.linkedLecture || !lectures.includes(d.linkedLecture)));
+                          if (uncategorizedDecks.length > 0) {
+                              blocks.push(renderCategory('General / Uncategorized', uncategorizedDecks, ''));
+                          }
+
+                          return blocks;
+                      })()}
+                      
+                      {availableDecks.filter(ad => !selectedSemester || ad.semester === selectedSemester).length > 0 && (
+                          <div style={{ marginTop: '40px' }}>
+                              <h3 style={{ color: 'var(--foam)', borderBottom: '1px solid var(--muted)', paddingBottom: '10px' }}>Available Decks (Not Imported)</h3>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
+                                  {availableDecks.filter(ad => !selectedSemester || ad.semester === selectedSemester).map(ad => (
+                                      <div key={ad.path} className="card" style={{ background: 'var(--base)', border: '1px dashed var(--muted)', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
+                                          <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>{ad.lecture}</div>
+                                          <div className="card-title" style={{ fontSize: '1.2rem', marginBottom: '15px' }}>{ad.name}</div>
+                                          <div style={{ marginTop: 'auto' }}>
+                                              <button className="button" onClick={() => handleImportFile(ad)} disabled={importLoading} style={{ width: '100%', borderColor: 'var(--foam)', color: 'var(--foam)', opacity: importLoading ? 0.5 : 1 }}>
+                                                  {importLoading ? 'Importing...' : 'Import Deck'}
+                                              </button>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
                   </div>
-              </div>
+              ) : studyMode ? (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                      {(() => {
+                          const deck = (data.decks || []).find(d => d.id === activeDeckId);
+                          if (!deck) return null;
+                          const now = new Date();
+                          const dueCards = deck.cards.filter(c => !c.nextReview || new Date(c.nextReview) <= now);
+                          
+                          if (currentCardIndex >= dueCards.length) {
+                              return (
+                                  <div style={{ textAlign: 'center' }}>
+                                      <h2 style={{ color: 'var(--pine)', marginBottom: '20px' }}>Deck Complete!</h2>
+                                      <button className="button" onClick={() => { setActiveDeckId(null); setStudyMode(false); }} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>Return to Decks</button>
+                                  </div>
+                              );
+                          }
+                          
+                          const card = dueCards[currentCardIndex];
+                          
+                          return (
+                              <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginBottom: '20px', color: 'var(--subtle)' }}>
+                                      <span>Deck: <strong style={{ color: 'var(--pine)' }}>{deck.name}</strong></span>
+                                      <span>Card {currentCardIndex + 1} / {dueCards.length}</span>
+                                  </div>
+                                  
+                                  <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--surface)', padding: '40px', borderRadius: '8px', border: '1px solid var(--muted)', marginBottom: '20px', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
+                                  
+                                  {showAnswer ? (
+                                      <>
+                                          <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--hl-low)', padding: '40px', borderRadius: '8px', border: '1px dashed var(--gold)', marginBottom: '30px', fontSize: '1.2rem', textAlign: 'center', color: 'var(--gold)', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
+                                          <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
+                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 0)} style={{ borderColor: 'var(--love)', color: 'var(--love)', flex: 1 }}>Again<br/>(0m)</button>
+                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 1)} style={{ borderColor: 'var(--rose)', color: 'var(--rose)', flex: 1 }}>Hard<br/>({(card.interval || 0) === 0 ? '1d' : Math.round((card.interval || 6) * (card.ease || 2.5) * 0.8) + 'd'})</button>
+                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 2)} style={{ borderColor: 'var(--pine)', color: 'var(--pine)', flex: 1 }}>Good<br/>({(card.interval || 0) === 0 ? '1d' : card.interval === 1 ? '6d' : Math.round((card.interval || 6) * (card.ease || 2.5)) + 'd'})</button>
+                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 3)} style={{ borderColor: 'var(--foam)', color: 'var(--foam)', flex: 1 }}>Easy<br/>({(card.interval || 0) === 0 ? '1d' : card.interval === 1 ? '6d' : Math.round((card.interval || 6) * (card.ease || 2.5) * 1.3) + 'd'})</button>
+                                          </div>
+                                      </>
+                                  ) : (
+                                      <button className="button" onClick={() => setShowAnswer(true)} style={{ width: '100%', padding: '15px', fontSize: '1.2rem', fontWeight: 'bold', borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                                          Show Answer
+                                      </button>
+                                  )}
+                                  
+                                  <div style={{ marginTop: '30px' }}>
+                                      <button className="button" onClick={() => { setActiveDeckId(null); setStudyMode(false); }} style={{ color: 'var(--muted)', borderColor: 'transparent' }}>Abort Study Session</button>
+                                  </div>
+                              </div>
+                          );
+                      })()}
+                  </div>
+              ) : (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
+                      {(() => {
+                          const deck = (data.decks || []).find(d => d.id === activeDeckId);
+                          if (!deck) return null;
+                          return (
+                              <>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                          <button className="button" onClick={() => setActiveDeckId(null)} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>&lt; Back</button>
+                                          <h2 style={{ color: 'var(--iris)', margin: 0 }}>Managing: {deck.name}</h2>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: '10px' }}>
+                                          <button className="button" onClick={() => setDeckSettingsModal({ isOpen: true, deckId: deck.id, defaultSemester: deck.linkedSemester, defaultLecture: deck.linkedLecture })} style={{ borderColor: 'var(--iris)', color: 'var(--iris)', fontWeight: 'bold' }}>⚙️ SETTINGS</button>
+                                          <button className="button" onClick={() => setEditingCard({ front: '', back: '' })} style={{ borderColor: 'var(--foam)', color: 'var(--foam)', fontWeight: 'bold' }}>+ NEW CARD</button>
+                                          <button className="button" onClick={() => {
+                                              asyncConfirm(`Delete deck "${deck.name}" entirely?`).then(res => {
+                                                  if (res) {
+                                                      const newDecks = (data.decks || []).filter(d => d.id !== deck.id);
+                                                      setData({...data, decks: newDecks});
+                                                      saveData({...data, decks: newDecks});
+                                                      setActiveDeckId(null);
+                                                  }
+                                              });
+                                          }} style={{ borderColor: 'var(--love)', color: 'var(--love)', fontWeight: 'bold' }}>DELETE DECK</button>
+                                      </div>
+                                  </div>
+                                  
+                                  {editingCard && (
+                                      <div style={{ background: 'var(--surface)', padding: '20px', borderRadius: '8px', border: '1px solid var(--gold)', marginBottom: '30px' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                                              <h3 style={{ color: 'var(--gold)', margin: 0 }}>{editingCard.id ? 'Edit Card' : 'New Card'}</h3>
+                                              <button className="button" onClick={() => setEditingPreview(!editingPreview)} style={{ padding: '5px 10px', fontSize: '0.8rem' }}>
+                                                  {editingPreview ? 'Show Editor' : 'Live Preview'}
+                                              </button>
+                                          </div>
+                                          
+                                          {editingPreview ? (
+                                              <div style={{ display: 'flex', gap: '20px', flexDirection: 'column' }}>
+                                                  <div style={{ background: 'var(--base)', padding: '15px', borderRadius: '6px', border: '1px solid var(--surface)' }}>
+                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
+                                                      <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.front) }} />
+                                                  </div>
+                                                  <div style={{ background: 'var(--hl-low)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--gold)', color: 'var(--gold)' }}>
+                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
+                                                      <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.back) }} />
+                                                  </div>
+                                              </div>
+                                          ) : (
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                  <div>
+                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
+                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, front: editingCard.front + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
+                                                      </div>
+                                                      <textarea placeholder="Front (Question)" value={editingCard.front} onChange={e => setEditingCard({...editingCard, front: e.target.value})} onPaste={e => handlePaste(e, 'front')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
+                                                  </div>
+                                                  
+                                                  <div>
+                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
+                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, back: editingCard.back + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
+                                                      </div>
+                                                      <textarea placeholder="Back (Answer)" value={editingCard.back} onChange={e => setEditingCard({...editingCard, back: e.target.value})} onPaste={e => handlePaste(e, 'back')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
+                                                  </div>
+                                              </div>
+                                          )}
+                                          
+                                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '15px' }}>
+                                              <button className="button" onClick={() => setEditingCard(null)} style={{ color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
+                                              <button className="button" onClick={handleSaveCard} style={{ background: 'var(--pine)', color: 'var(--base)', borderColor: 'var(--pine)', fontWeight: 'bold' }}>Save Card</button>
+                                          </div>
+                                      </div>
+                                  )}
+                                  
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <input 
+                                              type="text" 
+                                              placeholder="Search cards..." 
+                                              value={searchCardQuery} 
+                                              onChange={e => setSearchCardQuery(e.target.value)} 
+                                              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px 15px', borderRadius: '4px', width: '300px' }} 
+                                          />
+                                      </div>
+                                      
+                                      {deck.cards.length === 0 ? (
+                                          <div style={{ color: 'var(--muted)', textAlign: 'center', marginTop: '20px' }}>No cards in this deck yet.</div>
+                                      ) : deck.cards.filter(c => !searchCardQuery || c.front.toLowerCase().includes(searchCardQuery.toLowerCase()) || c.back.toLowerCase().includes(searchCardQuery.toLowerCase())).map(card => (
+                                          <div key={card.id} style={{ display: 'flex', background: 'var(--base)', border: '1px solid var(--surface)', borderRadius: '6px', overflow: 'hidden' }}>
+                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px dashed var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
+                                                  <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
+                                              </div>
+                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px solid var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--gold)' }}>
+                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
+                                                  <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
+                                              </div>
+                                              <div style={{ width: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', background: 'var(--hl-low)', padding: '10px' }}>
+                                                  <div style={{ fontSize: '0.7rem', color: 'var(--subtle)', textAlign: 'center' }}>
+                                                     Ease: {card.ease?.toFixed(2) || '2.50'}<br/>
+                                                     Int: {card.interval || 0}d
+                                                  </div>
+                                                  <button className="button" onClick={() => { setEditingCard(card); setEditingPreview(false); }} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--foam)', color: 'var(--foam)' }}>Edit</button>
+                                                  <button className="button" onClick={() => handleDeleteCard(card.id)} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--love)', color: 'var(--love)' }}>Delete</button>
+                                                  
+                                                  <select 
+                                                      className="button" 
+                                                      style={{ width: '100%', fontSize: '0.75rem', padding: '5px', borderColor: 'var(--muted)', color: 'var(--text)', background: 'transparent' }}
+                                                      onChange={(e) => {
+                                                          if (e.target.value) handleMoveCard(card.id, e.target.value);
+                                                          e.target.value = '';
+                                                      }}
+                                                      value=""
+                                                  >
+                                                      <option value="" disabled>Move to...</option>
+                                                      {(data.decks || []).filter(d => d.id !== deck.id).map(d => (
+                                                          <option key={d.id} value={d.id}>{d.name}</option>
+                                                      ))}
+                                                  </select>
+                                              </div>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </>
+                          );
+                      })()}
+                  </div>
+              )}
           </div>
         )}
       </div>
@@ -1981,7 +2996,7 @@ export default function Workspace() {
       )}
 
       {confirmData && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10001, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 20001, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
            <div style={{ background: 'var(--base)', padding: '20px', border: '1px solid var(--love)', borderRadius: '8px', minWidth: '350px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
               <div style={{ marginBottom: '25px', color: 'var(--text)', fontWeight: 'bold' }}>{confirmData.message}</div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -1992,7 +3007,7 @@ export default function Workspace() {
         </div>
       )}
       {promptData && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 20002, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
            <div style={{ background: 'var(--base)', padding: '20px', border: '1px solid var(--foam)', borderRadius: '8px', minWidth: '350px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
               <div style={{ marginBottom: '15px', color: 'var(--text)', fontWeight: 'bold' }}>{promptData.message}</div>
               <input 
@@ -2008,6 +3023,67 @@ export default function Workspace() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
                  <button className="button" onClick={() => { promptData.resolve(null); setPromptData(null); }} style={{ color: 'var(--love)', borderColor: 'var(--love)', padding: '5px 15px' }}>Cancel</button>
                  <button className="button" onClick={() => { promptData.resolve((document.getElementById('prompt-input') as HTMLInputElement).value); setPromptData(null); }} style={{ color: 'var(--pine)', borderColor: 'var(--pine)', padding: '5px 15px' }}>OK</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {deckSettingsModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10005, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+           <div style={{ background: 'var(--base)', padding: '20px', border: '1px solid var(--foam)', borderRadius: '8px', minWidth: '400px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              <div style={{ marginBottom: '15px', color: 'var(--gold)', fontWeight: 'bold' }}>&gt; DECK SETTINGS</div>
+              <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Deck Name</label>
+                  <input id="ds-name" type="text" defaultValue={(data.decks || []).find(d => d.id === deckSettingsModal.deckId)?.name || ''} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Linked Semester</label>
+                  <input id="ds-sem" type="text" defaultValue={deckSettingsModal.defaultSemester || ''} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Linked Lecture</label>
+                  <input id="ds-lec" type="text" defaultValue={deckSettingsModal.defaultLecture || ''} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                 <button className="button" onClick={() => setDeckSettingsModal(null)} style={{ color: 'var(--love)', borderColor: 'var(--love)', padding: '5px 15px' }}>Cancel</button>
+                 <button className="button" onClick={() => {
+                     const n = (document.getElementById('ds-name') as HTMLInputElement).value;
+                     const s = (document.getElementById('ds-sem') as HTMLInputElement).value;
+                     const l = (document.getElementById('ds-lec') as HTMLInputElement).value;
+                     if (n) handleSaveDeckSettings(deckSettingsModal.deckId, n, s, l);
+                 }} style={{ color: 'var(--pine)', borderColor: 'var(--pine)', padding: '5px 15px' }}>Save</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {importModalData && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 10005, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+           <div style={{ background: 'var(--base)', padding: '20px', border: '1px solid var(--foam)', borderRadius: '8px', minWidth: '400px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              <div style={{ marginBottom: '15px', color: 'var(--gold)', fontWeight: 'bold' }}>&gt; IMPORT DECK</div>
+              
+              <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Upload Anki (.apkg, .colpkg, .txt, .csv)</label>
+                  <input type="file" accept=".apkg,.colpkg,.txt,.csv" onChange={e => setImportModalFile(e.target.files?.[0] || null)} style={{ color: 'var(--text)' }} />
+              </div>
+
+              <div style={{ marginBottom: '15px', textAlign: 'center', color: 'var(--muted)' }}>— OR —</div>
+
+              <div style={{ marginBottom: '15px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Paste Buffl Link or Raw JSON</label>
+                  <textarea 
+                      value={importModalText} 
+                      onChange={e => setImportModalText(e.target.value)} 
+                      rows={4} 
+                      style={{ width: '100%', padding: '10px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', borderRadius: '4px', resize: 'vertical' }}
+                      placeholder="https://buffl.co/... or raw JSON"
+                  />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                 <button className="button" onClick={() => { setImportModalData(null); setImportModalText(''); setImportModalFile(null); }} style={{ color: 'var(--love)', borderColor: 'var(--love)', padding: '5px 15px' }}>Cancel</button>
+                 <button className="button" onClick={handleImportDeckSubmit} disabled={importLoading} style={{ color: 'var(--pine)', borderColor: 'var(--pine)', padding: '5px 15px', opacity: importLoading ? 0.5 : 1 }}>{importLoading ? 'Importing...' : 'Import'}</button>
               </div>
            </div>
         </div>

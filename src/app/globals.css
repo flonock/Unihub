@@ -389,3 +389,18 @@ body::after {
 .no-flicker h2 {
   animation: none !important;
 }
+
+.flashcard-content {
+  width: 100%;
+}
+.flashcard-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 15px auto;
+  display: block;
+}
+.flashcard-content i, .flashcard-content em { font-style: italic; color: var(--rose); }
+.flashcard-content b, .flashcard-content strong { font-weight: bold; color: var(--gold); }
+.flashcard-content sub { vertical-align: sub; font-size: smaller; }
+.flashcard-content sup { vertical-align: super; font-size: smaller; }

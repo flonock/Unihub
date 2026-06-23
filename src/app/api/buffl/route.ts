@@ -52,7 +52,7 @@ export async function POST(request: Request) {
             }
 
             // In the future: Write the extractedCards to targetPath as a JSON or XOPP file
-            return NextResponse.json({ success: true, count: extractedCards.length, message: `Successfully extracted ${extractedCards.length} cards from the JSON!` });
+            return NextResponse.json({ success: true, count: extractedCards.length, cards: extractedCards, message: `Successfully extracted ${extractedCards.length} cards from the JSON!` });
 
         } catch (e) {
             return NextResponse.json({ error: 'Invalid JSON format provided.' }, { status: 400 });
