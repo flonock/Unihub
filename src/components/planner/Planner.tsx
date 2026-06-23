@@ -67,7 +67,7 @@ export default function Planner({ ctx }: { ctx: any }) {
 
   return (
     <div className="planner">
-       <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
+       <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '30px' }}>
           <div>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'var(--surface)', border: '1px solid var(--muted)', padding: '10px 20px', borderRadius: '4px' }}>
                 <button className="button" style={{ borderColor: 'var(--subtle)', color: 'var(--text)' }} onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>&lt; Prev</button>
