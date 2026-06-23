@@ -1,0 +1,53 @@
+src/app/page.tsx(157,109): error TS2552: Cannot find name 'selectedLecture'. Did you mean 'setLectures'?
+src/app/page.tsx(157,126): error TS18004: No value exists in scope for the shorthand property 'setSelectedLecture'. Either declare one or provide an initializer.
+src/app/page.tsx(158,5): error TS2552: Cannot find name 'handleCreateSemester'. Did you mean 'handleDeleteSemester'?
+src/app/page.tsx(158,49): error TS2552: Cannot find name 'handleCreateLecture'. Did you mean 'handleCreateDeck'?
+src/app/page.tsx(158,70): error TS2552: Cannot find name 'handleDeleteLecture'. Did you mean 'handleDeleteFolder'?
+src/app/page.tsx(162,102): error TS18004: No value exists in scope for the shorthand property 'newDeckName'. Either declare one or provide an initializer.
+src/app/page.tsx(162,115): error TS18004: No value exists in scope for the shorthand property 'setNewDeckName'. Either declare one or provide an initializer.
+src/app/page.tsx(162,131): error TS18004: No value exists in scope for the shorthand property 'newDeckLink'. Either declare one or provide an initializer.
+src/app/page.tsx(162,144): error TS18004: No value exists in scope for the shorthand property 'setNewDeckLink'. Either declare one or provide an initializer.
+src/app/page.tsx(163,5): error TS18004: No value exists in scope for the shorthand property 'activeCardId'. Either declare one or provide an initializer.
+src/app/page.tsx(163,19): error TS18004: No value exists in scope for the shorthand property 'setActiveCardId'. Either declare one or provide an initializer.
+src/app/page.tsx(163,65): error TS18004: No value exists in scope for the shorthand property 'cardFront'. Either declare one or provide an initializer.
+src/app/page.tsx(163,76): error TS18004: No value exists in scope for the shorthand property 'setCardFront'. Either declare one or provide an initializer.
+src/app/page.tsx(163,90): error TS18004: No value exists in scope for the shorthand property 'cardBack'. Either declare one or provide an initializer.
+src/app/page.tsx(163,100): error TS18004: No value exists in scope for the shorthand property 'setCardBack'. Either declare one or provide an initializer.
+src/app/page.tsx(163,113): error TS18004: No value exists in scope for the shorthand property 'cardTags'. Either declare one or provide an initializer.
+src/app/page.tsx(163,123): error TS18004: No value exists in scope for the shorthand property 'setCardTags'. Either declare one or provide an initializer.
+src/app/page.tsx(164,30): error TS18004: No value exists in scope for the shorthand property 'cramIndex'. Either declare one or provide an initializer.
+src/app/page.tsx(164,41): error TS18004: No value exists in scope for the shorthand property 'setCramIndex'. Either declare one or provide an initializer.
+src/app/page.tsx(164,127): error TS18004: No value exists in scope for the shorthand property 'activeSessionType'. Either declare one or provide an initializer.
+src/app/page.tsx(164,146): error TS18004: No value exists in scope for the shorthand property 'setActiveSessionType'. Either declare one or provide an initializer.
+src/app/page.tsx(169,5): error TS18004: No value exists in scope for the shorthand property 'handleAddDeck'. Either declare one or provide an initializer.
+src/app/page.tsx(169,20): error TS18004: No value exists in scope for the shorthand property 'handleDeleteDeck'. Either declare one or provide an initializer.
+src/app/page.tsx(1689,27): error TS2304: Cannot find name 'ctx'.
+src/app/page.tsx(2139,25): error TS2304: Cannot find name 'ctx'.
+src/app/page.tsx(2168,34): error TS2304: Cannot find name 'ctx'.
+src/components/flashcards/FlashcardManager.tsx(37,75): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(45,111): error TS2304: Cannot find name 'sessionStudyFilter'.
+src/components/flashcards/FlashcardManager.tsx(65,245): error TS1117: An object literal cannot have multiple properties with the same name.
+src/components/flashcards/FlashcardManager.tsx(71,280): error TS1117: An object literal cannot have multiple properties with the same name.
+src/components/flashcards/FlashcardManager.tsx(71,307): error TS1117: An object literal cannot have multiple properties with the same name.
+src/components/flashcards/FlashcardManager.tsx(117,62): error TS7006: Parameter 'deck' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(117,137): error TS7006: Parameter 'deck' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(120,84): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(139,121): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(153,72): error TS7006: Parameter 'card' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(153,78): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(177,62): error TS7006: Parameter 'deck' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(181,69): error TS2304: Cannot find name 'handleSaveSession'.
+src/components/flashcards/FlashcardManager.tsx(192,62): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(192,131): error TS7006: Parameter 'session' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(193,161): error TS1117: An object literal cannot have multiple properties with the same name.
+src/components/flashcards/FlashcardManager.tsx(236,132): error TS2304: Cannot find name 'handleDeleteSession'.
+src/components/flashcards/FlashcardManager.tsx(240,62): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(253,76): error TS2304: Cannot find name 'Deck'.
+src/components/flashcards/FlashcardManager.tsx(258,187): error TS2552: Cannot find name 'handleCreateDeck'. Did you mean 'handleDeleteDeck'?
+src/components/flashcards/FlashcardManager.tsx(259,187): error TS2304: Cannot find name 'setImportModalData'.
+src/components/flashcards/FlashcardManager.tsx(269,82): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(271,236): error TS1117: An object literal cannot have multiple properties with the same name.
+src/components/flashcards/FlashcardManager.tsx(282,162): error TS2552: Cannot find name 'setCurrentCardIndex'. Did you mean 'currentCardIndex'?
+src/components/flashcards/FlashcardManager.tsx(293,55): error TS7006: Parameter 'lec' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(294,74): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/components/flashcards/FlashcardManager.tsx(298,80): error TS7006: Parameter 'd' implicitly has an 'any' type.

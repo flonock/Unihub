@@ -1,19 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Dashboard from '@/components/dashboard/Dashboard';
+import FlashcardManager from '@/components/flashcards/FlashcardManager';
+import WidgetPanel from '@/components/widgets/WidgetPanel';
+import Planner from '@/components/planner/Planner';
+import LectureNexus from '@/components/lecture/LectureNexus';
+import Sidebar from '@/components/layout/Sidebar';
 
-type FileEntry = { name: string; isDirectory: boolean; path: string; isPdf?: boolean; isXopp?: boolean; ext?: string; };
-type Exam = { id: string; name: string; date?: string; link?: string; semester?: string; };
-type Todo = { id: string; title: string; status: boolean; link: string; progress?: number; dueDate?: string; };
-type CalendarEvent = { id: string; title: string; startDate: string; endDate: string; type: 'task' | 'study'; link?: string; };
-type LectureMeta = { category?: 'Wahlpflicht' | 'Wahlfach' | 'Ignore' | ''; credits?: number; grade?: string; container?: string; notes?: string; };
-type Flashcard = { id: string; front: string; back: string; ease?: number; interval?: number; nextReview?: string; };
-type Deck = { id: string; name: string; link?: string; linkedSemester?: string; linkedLecture?: string; cards: Flashcard[]; };
-type StudySession = { id: string; name: string; mode: 'cram' | 'spaced'; deckIds: string[]; cardIds: string[]; batchSize: number; cramState?: { cardRatings: Record<string, 0|1|2|3> }; linkedSemester?: string; linkedLecture?: string; };
-type WorkspaceData = { exams: Exam[]; todos: Todo[]; notes: string; studyPlan?: string; events?: CalendarEvent[]; confidences?: Record<string, number>; examPeriodStart?: string; examPeriodEnd?: string; lectureMeta?: Record<string, LectureMeta>; containers?: string[]; containerMaxCredits?: Record<string, number>; decks?: Deck[]; studySessions?: StudySession[]; };
+import type { FileEntry, Exam, Todo, CalendarEvent, LectureMeta, Flashcard, Deck, StudySession, WorkspaceData } from '@/types';
 
 export default function Workspace() {
   const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS'>('MISSION_CONTROL');
+  const [rightPanelMode, setRightPanelMode] = useState<'PLANNER' | 'WIDGETS' | 'HIDDEN'>('WIDGETS');
 
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [currentPath, setCurrentPath] = useState('');
@@ -24,29 +23,7 @@ export default function Workspace() {
   const [selectedSemester, setSelectedSemester] = useState<string>('');
   const [lectures, setLectures] = useState<string[]>([]);
 
-  // Widget Switcher State
-  const [activeWidget, setActiveWidget] = useState(0);
-  const widgetNames = ["Pomodoro", "Converter", "Astro Clock", "Data Encoder", "Telemetry"];
-  
-  // Widget 0: Pomodoro
-  const [pomoTime, setPomoTime] = useState(1500);
-  const [pomoActive, setPomoActive] = useState(false);
-  const [pomoMode, setPomoMode] = useState<'WORK' | 'BREAK'>('WORK');
 
-  // Widget 1: Converter
-  const [convValue, setConvValue] = useState('1');
-  const [convType, setConvType] = useState('lb_to_kg');
-
-  // Widget 2: Astro Clock
-  const [jd, setJd] = useState('');
-  const [utc, setUtc] = useState('');
-
-  // Widget 3: Data Encoder
-  const [encInput, setEncInput] = useState('AEROSPACE');
-  const [encMode, setEncMode] = useState<'HEX' | 'BIN'>('HEX');
-
-  // Widget 4: Telemetry
-  const [pingData, setPingData] = useState<number[]>([12, 14, 15, 12, 18, 11, 13, 14, 16, 12]);
 
   // Flashcard Media Processor
   const processHtml = (html: string) => {
@@ -103,7 +80,6 @@ export default function Workspace() {
   useEffect(() => {
      fetch('/api/settings').then(res => res.json()).then(data => {
          setAppConfig(data);
-         setPomoTime((data.pomoWorkTime || 25) * 60);
      });
   }, []);
 
@@ -574,73 +550,7 @@ export default function Workspace() {
       if (editingEventId === id) cancelEditEvent();
   };
 
-  // -------------------------
-  // WIDGET LOGIC
-  // -------------------------
-  useEffect(() => {
-    let interval: any;
-    if (pomoActive && pomoTime > 0) {
-      interval = setInterval(() => setPomoTime(t => Math.max(0, t - 1)), 1000);
-    } else if (pomoTime === 0 && pomoActive) {
-      setPomoActive(false);
-    }
-    return () => clearInterval(interval);
-  }, [pomoActive, pomoTime]);
 
-  let convertedValue = '--';
-  const cv = parseFloat(convValue);
-  if (!isNaN(cv)) {
-     switch(convType) {
-        case 'lb_to_kg': convertedValue = (cv * 0.453592).toFixed(2) + ' kg'; break;
-        case 'kg_to_lb': convertedValue = (cv * 2.20462).toFixed(2) + ' lb'; break;
-        case 'mi_to_km': convertedValue = (cv * 1.60934).toFixed(2) + ' km'; break;
-        case 'km_to_mi': convertedValue = (cv * 0.621371).toFixed(2) + ' mi'; break;
-        case 'f_to_c': convertedValue = ((cv - 32) * 5/9).toFixed(2) + ' °C'; break;
-        case 'c_to_f': convertedValue = ((cv * 9/5) + 32).toFixed(2) + ' °F'; break;
-        case 'psi_to_pa': convertedValue = (cv * 6894.76).toFixed(0) + ' Pa'; break;
-        case 'pa_to_psi': convertedValue = (cv / 6894.76).toFixed(4) + ' psi'; break;
-        case 'sec_to_hr': convertedValue = (cv / 3600).toFixed(4) + ' hr'; break;
-        case 'hr_to_sec': convertedValue = (cv * 3600).toFixed(0) + ' s'; break;
-        case 'day_to_hr': convertedValue = (cv * 24).toFixed(1) + ' hr'; break;
-        case 'hr_to_day': convertedValue = (cv / 24).toFixed(4) + ' day'; break;
-        case 'j_to_cal': convertedValue = (cv / 4.184).toFixed(2) + ' cal'; break;
-        case 'cal_to_j': convertedValue = (cv * 4.184).toFixed(2) + ' J'; break;
-        case 'w_to_hp': convertedValue = (cv / 745.7).toFixed(4) + ' hp'; break;
-        case 'hp_to_w': convertedValue = (cv * 745.7).toFixed(2) + ' W'; break;
-        case 'm_s_to_km_h': convertedValue = (cv * 3.6).toFixed(2) + ' km/h'; break;
-        case 'km_h_to_m_s': convertedValue = (cv / 3.6).toFixed(2) + ' m/s'; break;
-     }
-  }
-
-  let encodedValue = '';
-  if (encMode === 'HEX') {
-      encodedValue = encInput.split('').map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ').toUpperCase();
-  } else {
-      encodedValue = encInput.split('').map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
-  }
-
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setUtc(now.toISOString().replace('T', ' ').substring(0, 19) + ' Z');
-      const timeMs = now.getTime();
-      const julian = (timeMs / 86400000) + 2440587.5;
-      setJd(julian.toFixed(4));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-       setPingData(prev => {
-          const next = [...prev.slice(1), Math.floor(Math.random() * 15) + 10];
-          return next;
-       });
-    }, 1500);
-    return () => clearInterval(interval);
-  }, []);
 
   // Fetch semesters
   useEffect(() => {
@@ -1660,719 +1570,174 @@ export default function Workspace() {
       }
   };
 
+  const ctx = {
+    activeTab,
+    setActiveTab,
+    files,
+    setFiles,
+    currentPath,
+    setCurrentPath,
+    loading,
+    setLoading,
+    pdfPreviewFile,
+    setPdfPreviewFile,
+    semesters,
+    setSemesters,
+    selectedSemester,
+    setSelectedSemester,
+    lectures,
+    setLectures,
+
+    flashcardTab,
+    setFlashcardTab,
+    sessionBuilder,
+    setSessionBuilder,
+    expandedDecks,
+    setExpandedDecks,
+    activeSessionId,
+    setActiveSessionId,
+    sessionStudyFilter,
+    setSessionStudyFilter,
+    cramQueue,
+    setCramQueue,
+    activeDeckId,
+    setActiveDeckId,
+    studyMode,
+    setStudyMode,
+    currentCardIndex,
+    setCurrentCardIndex,
+    showAnswer,
+    setShowAnswer,
+    editingCard,
+    setEditingCard,
+    importModalData,
+    setImportModalData,
+    importModalText,
+    setImportModalText,
+    importModalFile,
+    setImportModalFile,
+    importLoading,
+    setImportLoading,
+    availableDecks,
+    setAvailableDecks,
+    deckSettingsModal,
+    setDeckSettingsModal,
+    editingPreview,
+    setEditingPreview,
+    searchCardQuery,
+    setSearchCardQuery,
+    promptData,
+    setPromptData,
+    confirmData,
+    setConfirmData,
+    appConfig,
+    setAppConfig,
+    settingsData,
+    setSettingsData,
+    data,
+    setData,
+    overviewTab,
+    setOverviewTab,
+    overviewData,
+    setOverviewData,
+    showCommandPalette,
+    setShowCommandPalette,
+    commandQuery,
+    setCommandQuery,
+    newExamName,
+    setNewExamName,
+    newExamDate,
+    setNewExamDate,
+    newExamLink,
+    setNewExamLink,
+    newTodoTitle,
+    setNewTodoTitle,
+    newTodoLink,
+    setNewTodoLink,
+    newTodoProgress,
+    setNewTodoProgress,
+    newTodoDueDate,
+    setNewTodoDueDate,
+    editingExamId,
+    setEditingExamId,
+    editingTodoId,
+    setEditingTodoId,
+    editingEventId,
+    setEditingEventId,
+    currentMonth,
+    setCurrentMonth,
+    newEventTitle,
+    setNewEventTitle,
+    newEventStart,
+    setNewEventStart,
+    newEventEnd,
+    setNewEventEnd,
+    newEventType,
+    setNewEventType,
+    handleAddSemester,
+    handleAddContainer,
+    handleDeleteSemester,
+    handleDeleteContainer,
+    handleChangeMaxCredits,
+    handleCreateFolder,
+    handleDeleteFolder,
+    handleAddOrUpdateExam,
+    handleDeleteExam,
+    handleAddOrUpdateTodo,
+    handleDeleteTodo,
+    handleAddOrUpdateEvent,
+    handleDeleteEvent,
+    handleOpen,
+    handleNewNote,
+    handleImportFile,
+    handleImportDeckSubmit,
+    handleScoreCard,
+    handleCreateDeck,
+    handleSaveDeckSettings,
+    handlePaste,
+    handleSaveSession,
+    handleDeleteSession,
+    handleRateCramCard,
+    handleSaveCard,
+    handleDeleteCard,
+    handleMoveCard,
+    saveData,
+    asyncPrompt,
+    asyncConfirm,
+    processHtml,
+    getConfidenceColor,
+    prepareCramQueue,
+    renderAlerts,
+    renderTimeline,
+    cancelEditExam,
+    getCalculatedConfidence,
+    updateConf,
+    cloneExam,
+    startEditExam,
+    renderProgressBar,
+    navigateToLink,
+    cancelEditTodo,
+    cloneTodo,
+    startEditTodo,
+    cancelEditEvent,
+    cloneEvent,
+    startEditEvent,
+    updateLectureMeta,
+    openSettings,
+    groupedTodos
+  };
+
   return (
     <div className={`app-container ${!appConfig.enableFlicker ? 'no-flicker' : ''}`}>
-      <div className="sidebar" style={{ width: '360px' }}>
-        <div className="sidebar-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-           <span>{appConfig.workspaceTitle}</span>
-           <span style={{ cursor: 'pointer', fontSize: '1.2rem', color: 'var(--subtle)', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color='var(--text)'} onMouseLeave={e => e.currentTarget.style.color='var(--subtle)'} onClick={openSettings} title="Settings">⚙</span>
-        </div>
+      {!studyMode && <Sidebar ctx={ctx} />}
+      
+      <div className="main-content" style={{ flex: 1, padding: studyMode ? '0' : '40px', overflowY: 'auto' }}>
+        {activeTab === 'MISSION_CONTROL' && <Dashboard ctx={ctx} />}
         
-        {/* TABS */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px', marginBottom: '20px' }}>
-          <button 
-            className="button" 
-            onClick={() => setActiveTab('MISSION_CONTROL')}
-            style={{ padding: '8px 5px', fontSize: '0.8rem', borderColor: activeTab === 'MISSION_CONTROL' ? 'var(--rose)' : 'var(--muted)', color: activeTab === 'MISSION_CONTROL' ? 'var(--rose)' : 'var(--text)' }}
-          >
-            DASHBOARD
-          </button>
-          <button 
-            className="button" 
-            onClick={() => setActiveTab('PLANNER')}
-            style={{ padding: '8px 5px', fontSize: '0.8rem', borderColor: activeTab === 'PLANNER' ? 'var(--gold)' : 'var(--muted)', color: activeTab === 'PLANNER' ? 'var(--gold)' : 'var(--text)' }}
-          >
-            PLANNER
-          </button>
-          <button 
-            className="button" 
-            onClick={() => setActiveTab('BROWSER')}
-            style={{ padding: '8px 5px', fontSize: '0.8rem', borderColor: activeTab === 'BROWSER' ? 'var(--foam)' : 'var(--muted)', color: activeTab === 'BROWSER' ? 'var(--foam)' : 'var(--text)' }}
-          >
-            BROWSER
-          </button>
-          <button 
-            className="button" 
-            onClick={() => setActiveTab('OVERVIEW')}
-            style={{ padding: '8px 5px', fontSize: '0.8rem', borderColor: activeTab === 'OVERVIEW' ? 'var(--iris)' : 'var(--muted)', color: activeTab === 'OVERVIEW' ? 'var(--iris)' : 'var(--text)' }}
-          >
-            OVERVIEW
-          </button>
-          <button 
-            className="button" 
-            onClick={() => setActiveTab('FLASHCARDS')}
-            style={{ padding: '8px 5px', fontSize: '0.8rem', borderColor: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--muted)', color: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--text)' }}
-          >
-            FLASHCARDS
-          </button>
-        </div>
-
-        {/* Semester Dropdown */}
-        <div className="widget" style={{ padding: '10px' }}>
-          <div style={{ color: 'var(--subtle)', marginBottom: '8px', fontSize: '0.8rem' }}>[ SELECT_SEMESTER ]</div>
-          <select 
-            value={selectedSemester} 
-            onChange={e => {
-              setSelectedSemester(e.target.value);
-              setCurrentPath(e.target.value);
-              setActiveTab('MISSION_CONTROL');
-            }}
-            style={{ width: '100%', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '6px', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
-          >
-            {semesters.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button onClick={handleAddSemester} className="button" style={{ width: '100%', marginTop: '5px', padding: '6px', fontSize: '0.8rem', borderColor: 'var(--foam)', color: 'var(--foam)' }}>+ ADD SEMESTER</button>
-        </div>
-
-        {/* Lectures List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflowY: 'auto' }}>
-          <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginTop: '10px', marginBottom: '5px' }}>--- LECTURES ---</div>
-          {lectures.map(lec => {
-            const path = `${selectedSemester}/${lec}`;
-            const isActive = currentPath === path || currentPath.startsWith(path + '/');
-            const conf = data.confidences?.[path] ?? null;
-            return (
-              <div 
-                key={lec} 
-                className={`lecture-item ${isActive ? 'active' : ''}`}
-                onClick={() => {
-                  setCurrentPath(path);
-                  setActiveTab('BROWSER');
-                }}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{isActive ? '> ' : '  '}{lec}</span>
-                <span 
-                   onClick={async (e) => { e.stopPropagation(); const val = await asyncPrompt(`Set confidence for ${lec} (0-100):`, conf !== null ? conf.toString() : '0');
-                       if (val !== null) {
-                           updateConf(path, parseInt(val) || 0);
-                       }
-                   }}
-                   style={{ color: conf !== null ? getConfidenceColor(conf) : 'var(--muted)', fontSize: '0.75rem', fontWeight: 'bold', marginLeft: '5px', cursor: 'pointer' }}
-                   title="Edit Confidence"
-                >
-                   [{conf !== null ? conf : '--'}%]
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Widget Area */}
-        <div className="widget" style={{marginTop: 'auto'}}>
-          <div className="widget-title">
-            <span>--- {widgetNames[activeWidget].toUpperCase()} ---</span>
-            <div style={{ display: 'flex', gap: '5px', cursor: 'pointer' }}>
-              <span onClick={() => setActiveWidget((prev) => (prev - 1 + widgetNames.length) % widgetNames.length)} style={{color: 'var(--foam)'}}>[&lt;]</span>
-              <span onClick={() => setActiveWidget((prev) => (prev + 1) % widgetNames.length)} style={{color: 'var(--foam)'}}>[&gt;]</span>
-            </div>
-          </div>
-
-          {activeWidget === 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', padding: '5px 0' }}>
-               <div style={{ fontSize: '2rem', color: pomoActive ? 'var(--love)' : 'var(--text)', fontWeight: 'bold', textShadow: pomoActive ? '0 0 10px var(--love)' : 'none' }}>
-                  {Math.floor(pomoTime / 60).toString().padStart(2, '0')}:{(pomoTime % 60).toString().padStart(2, '0')}
-               </div>
-               <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
-                  <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.75rem', borderColor: pomoActive ? 'var(--love)' : 'var(--foam)', color: pomoActive ? 'var(--love)' : 'var(--foam)' }} onClick={() => setPomoActive(!pomoActive)}>
-                     {pomoActive ? 'PAUSE' : 'START'}
-                  </button>
-                  <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.75rem' }} onClick={() => { setPomoActive(false); setPomoTime(pomoMode === 'WORK' ? appConfig.pomoWorkTime * 60 : appConfig.pomoBreakTime * 60); }}>
-                     RESET
-                  </button>
-               </div>
-               <div style={{ display: 'flex', gap: '10px', fontSize: '0.7rem' }}>
-                  <span style={{ cursor: 'pointer', color: pomoMode === 'WORK' ? 'var(--gold)' : 'var(--subtle)' }} onClick={() => { setPomoMode('WORK'); setPomoActive(false); setPomoTime(appConfig.pomoWorkTime * 60); }}>[ WORK ]</span>
-                  <span style={{ cursor: 'pointer', color: pomoMode === 'BREAK' ? 'var(--gold)' : 'var(--subtle)' }} onClick={() => { setPomoMode('BREAK'); setPomoActive(false); setPomoTime(appConfig.pomoBreakTime * 60); }}>[ BREAK ]</span>
-               </div>
-            </div>
-          )}
-
-          {activeWidget === 1 && (
-            <div style={{ padding: '5px 0' }}>
-              <div style={{display: 'flex', gap: '5px', marginBottom: '8px'}}>
-                 <input type="number" value={convValue} onChange={e => setConvValue(e.target.value)} style={{ flex: 1, background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '4px', fontSize: '0.9rem', width: '50%' }} />
-                 <select value={convType} onChange={e => setConvType(e.target.value)} style={{ flex: 1, background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '4px', fontSize: '0.8rem', width: '50%', cursor: 'pointer' }}>
-                    <option value="lb_to_kg">lb &rarr; kg</option>
-                    <option value="kg_to_lb">kg &rarr; lb</option>
-                    <option value="mi_to_km">mi &rarr; km</option>
-                    <option value="km_to_mi">km &rarr; mi</option>
-                    <option value="f_to_c">°F &rarr; °C</option>
-                    <option value="c_to_f">°C &rarr; °F</option>
-                    <option value="psi_to_pa">psi &rarr; Pa</option>
-                    <option value="pa_to_psi">Pa &rarr; psi</option>
-                    <option disabled>──────</option>
-                    <option value="sec_to_hr">sec &rarr; hr</option>
-                    <option value="hr_to_sec">hr &rarr; sec</option>
-                    <option value="day_to_hr">day &rarr; hr</option>
-                    <option value="hr_to_day">hr &rarr; day</option>
-                    <option disabled>──────</option>
-                    <option value="j_to_cal">J &rarr; cal</option>
-                    <option value="cal_to_j">cal &rarr; J</option>
-                    <option value="w_to_hp">W &rarr; hp</option>
-                    <option value="hp_to_w">hp &rarr; W</option>
-                    <option disabled>──────</option>
-                    <option value="m_s_to_km_h">m/s &rarr; km/h</option>
-                    <option value="km_h_to_m_s">km/h &rarr; m/s</option>
-                 </select>
-              </div>
-              <div style={{ fontSize: '1rem', color: 'var(--pine)', fontWeight: 'bold', textAlign: 'center', padding: '5px', background: 'var(--hl-low)', border: '1px dashed var(--pine)' }}>
-                 {convertedValue}
-              </div>
-            </div>
-          )}
-
-          {activeWidget === 2 && (
-            <div style={{ padding: '10px 0', textAlign: 'center' }}>
-              <div style={{fontSize: '0.75rem', color: 'var(--subtle)'}}>UTC TIME</div>
-              <div style={{fontSize: '1rem', color: 'var(--foam)', marginBottom: '10px'}}>{utc}</div>
-              <div style={{fontSize: '0.75rem', color: 'var(--subtle)'}}>JULIAN DATE</div>
-              <div style={{fontSize: '1rem', color: 'var(--rose)'}}>{jd}</div>
-            </div>
-          )}
-
-          {activeWidget === 3 && (
-            <div style={{ padding: '5px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <input value={encInput} onChange={e => setEncInput(e.target.value)} placeholder="Type text..." style={{ width: '100%', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '6px', fontSize: '0.8rem' }} />
-              <div style={{ display: 'flex', gap: '5px' }}>
-                  <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.7rem', borderColor: encMode === 'HEX' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'HEX' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('HEX')}>HEX</button>
-                  <button className="button" style={{ flex: 1, padding: '4px', fontSize: '0.7rem', borderColor: encMode === 'BIN' ? 'var(--gold)' : 'var(--muted)', color: encMode === 'BIN' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setEncMode('BIN')}>BIN</button>
-              </div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--iris)', fontFamily: 'monospace', padding: '8px', background: 'var(--hl-low)', border: '1px dashed var(--iris)', wordBreak: 'break-all', maxHeight: '80px', overflowY: 'auto' }}>
-                 {encodedValue || '...'}
-              </div>
-            </div>
-          )}
-
-          {activeWidget === 4 && (
-            <div style={{ padding: '5px 0' }}>
-               <div style={{ fontSize: '0.75rem', color: 'var(--subtle)', display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                  <span>UPLINK STATUS</span>
-                  <span style={{ color: 'var(--pine)', animation: 'blinkCursor 1s infinite' }}>SECURE</span>
-               </div>
-               <div style={{ display: 'flex', alignItems: 'flex-end', height: '40px', gap: '2px', borderBottom: '1px solid var(--muted)', paddingBottom: '2px' }}>
-                  {pingData.map((p, i) => (
-                     <div key={i} style={{ flex: 1, background: 'var(--foam)', opacity: 0.6 + (p/20)*0.4, height: `${(p/25)*100}%`, transition: 'height 0.2s' }}></div>
-                  ))}
-               </div>
-               <div style={{ fontSize: '0.7rem', color: 'var(--subtle)', marginTop: '5px', textAlign: 'right' }}>
-                  Avg Latency: {Math.round(pingData.reduce((a,b)=>a+b,0)/pingData.length)}ms
-               </div>
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      <div className="main-content">
         {activeTab === 'BROWSER' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', height: '100%' }}>
-            
-            {/* LEFT: File Browser */}
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div className="breadcrumb">
-                    <span 
-                      className={`breadcrumb-item ${currentPath === '' ? 'breadcrumb-active' : ''}`}
-                      onClick={() => setCurrentPath('')}
-                    >
-                      ~/Uni
-                    </span>
-                    {pathParts.map((part, index) => {
-                      const partPath = pathParts.slice(0, index + 1).join('/');
-                      return (
-                        <span key={partPath} className="breadcrumb" style={{gap: '10px'}}>
-                          <span style={{color: 'var(--muted)'}}>/</span>
-                          <span 
-                            className={`breadcrumb-item ${index === pathParts.length - 1 ? 'breadcrumb-active' : ''}`}
-                            onClick={() => setCurrentPath(partPath)}
-                          >
-                            {part}
-                          </span>
-                        </span>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                     <button className="button" onClick={() => handleCreateFolder(currentPath)} style={{ fontSize: '0.8rem', padding: '4px 8px' }}>+ Mkdir</button>
-                     {currentPath !== '' && (
-                         <button className="button" onClick={() => handleDeleteFolder(currentPath)} style={{ fontSize: '0.8rem', padding: '4px 8px', color: 'var(--love)', borderColor: 'var(--love)' }}>- Rm</button>
-                     )}
-                  </div>
-                </div>
-
-                {loading ? (
-                  <div style={{ color: 'var(--iris)' }}>Loading...</div>
-                ) : (
-                  <div className="grid">
-                    {files.map(file => {
-                      const extStr = file.isDirectory ? 'DIR' : (file.ext ? file.ext.substring(0,3).toUpperCase() : '???');
-                      const color = file.isDirectory ? 'var(--foam)' : 
-                                    file.ext === 'xopp' ? 'var(--rose)' : 
-                                    file.ext === 'pdf' ? 'var(--love)' : 
-                                    file.ext === 'txt' || file.ext === 'md' ? 'var(--pine)' :
-                                    file.ext === 'png' || file.ext === 'jpg' ? 'var(--gold)' :
-                                    file.ext === 'json' || file.ext === 'js' || file.ext === 'ts' || file.ext === 'py' || file.ext === 'cpp' || file.ext === 'c' ? 'var(--iris)' :
-                                    'var(--subtle)';
-                      return (
-                      <div key={file.path} className="card" onClick={() => handleOpen(file)}>
-                        <div className="card-icon" style={{ color }}>
-                          [{extStr}]
-                        </div>
-                        <div className="card-title" title={file.name}>{file.name}</div>
-                      </div>
-                      );
-                    })}
-                    {files.length === 0 && (
-                        <div style={{ color: 'var(--muted)', gridColumn: '1 / -1' }}>[ Directory is empty ]</div>
-                    )}
-                  </div>
-                )}
-            </div>
-
-            {/* RIGHT: Context Sidebar */}
-            <div style={{ borderLeft: '1px dashed var(--muted)', paddingLeft: '20px', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-                <h2 style={{ color: 'var(--gold)', marginBottom: '20px', fontSize: '1rem' }}>&gt; LECTURE CONTEXT</h2>
-                {(() => {
-                   if (!currentPath) return <div style={{ color: 'var(--subtle)', fontSize: '0.9rem' }}>Navigate to a lecture to view context.</div>;
-                   
-                   const rootLecturePath = currentPath.split('/').slice(0,2).join('/');
-                   const conf = data.confidences?.[rootLecturePath] ?? 0;
-                   const bars = Math.floor(conf / 10);
-                   const empty = 10 - bars;
-                   const confColor = getConfidenceColor(conf);
-
-                   const contextExams = data.exams.filter(e => currentPath === e.link || currentPath.startsWith(e.link + '/'));
-                   const contextTodos = data.todos.filter(t => currentPath === t.link || (t.link && currentPath.startsWith(t.link + '/')));
-                   
-                   const currentSemester = currentPath.split('/')[0];
-                   const currentLectureName = currentPath.split('/')[1];
-                   const contextSessions = (data.studySessions || []).filter(s => s.linkedSemester === currentSemester && s.linkedLecture === currentLectureName);
-                   const contextDecks = (data.decks || []).filter(d => d.linkedSemester === currentSemester && d.linkedLecture === currentLectureName);
-
-                   return (
-                     <>
-                        <div style={{ marginBottom: '20px', background: 'var(--base)', border: '1px solid var(--muted)', padding: '10px' }}>
-                           <div style={{ color: 'var(--iris)', fontSize: '0.8rem', marginBottom: '8px', fontWeight: 'bold' }}>CONFIDENCE LEVEL</div>
-                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                               <div style={{ display: 'flex', justifyContent: 'space-between', color: confColor }}>
-                                   <span style={{ letterSpacing: '2px' }}>[{'#'.repeat(bars)}{'-'.repeat(empty)}]</span>
-                                   <span style={{ fontWeight: 'bold' }}>{conf}%</span>
-                               </div>
-                               <div style={{ display: 'flex', gap: '5px' }}>
-                                   <button className="button" onClick={() => updateConf(rootLecturePath, conf - 10)} style={{ flex: 1, padding: '2px', fontSize: '0.75rem', color: 'var(--love)', borderColor: 'var(--love)' }}>-10</button>
-                                   <button className="button" onClick={() => updateConf(rootLecturePath, conf - 1)} style={{ flex: 1, padding: '2px', fontSize: '0.75rem', color: 'var(--love)', borderColor: 'var(--love)' }}>-1</button>
-                                   <button className="button" onClick={() => updateConf(rootLecturePath, conf + 1)} style={{ flex: 1, padding: '2px', fontSize: '0.75rem', color: 'var(--pine)', borderColor: 'var(--pine)' }}>+1</button>
-                                   <button className="button" onClick={() => updateConf(rootLecturePath, conf + 10)} style={{ flex: 1, padding: '2px', fontSize: '0.75rem', color: 'var(--pine)', borderColor: 'var(--pine)' }}>+10</button>
-                               </div>
-                           </div>
-                        </div>
-
-                        {/* Exams */}
-                        {contextExams.map(exam => {
-                           const daysLeft = Math.ceil((new Date(exam.date || '').getTime() - new Date().getTime()) / (1000 * 3600 * 24));
-                           return (
-                             <div key={`ctx-ex-${exam.id}`} style={{ marginBottom: '15px', background: 'var(--base)', border: '1px solid var(--love)', padding: '10px' }}>
-                                <div style={{ color: 'var(--love)', fontWeight: 'bold', marginBottom: '5px' }}>EXAM: {exam.name}</div>
-                                <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '5px' }}>Date: {exam.date}</div>
-                                <div style={{ color: (daysLeft ?? 0) < 7 ? 'var(--love)' : 'var(--pine)', fontSize: '0.9rem' }}>T-Minus {daysLeft} Days</div>
-                                <div style={{ color: 'var(--text)', marginTop: '5px', fontSize: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden' }}>{renderProgressBar(daysLeft ?? 0, 30)}</div>
-                             </div>
-                           );
-                        })}
-                        {contextExams.length === 0 && <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '15px' }}>No exams mapped to this path.</div>}
-
-                        {/* Flashcards */}
-                        {currentSemester && currentLectureName && (
-                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
-                               <div style={{ color: 'var(--gold)', fontWeight: 'bold', fontSize: '0.9rem' }}>STUDY SESSIONS</div>
-                               {contextDecks.length > 0 && (
-                                   <button className="button" style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--gold)', borderColor: 'var(--gold)' }} onClick={() => {
-                                       const newSession = {
-                                           id: Date.now().toString(),
-                                           name: `${currentLectureName} Cram`,
-                                           mode: 'cram' as const,
-                                           deckIds: contextDecks.map(d => d.id),
-                                           cardIds: [],
-                                           batchSize: 20,
-                                           linkedSemester: currentSemester,
-                                           linkedLecture: currentLectureName
-                                       };
-                                       let newSessions = [...(data.studySessions || []), newSession];
-                                       const newData = { ...data, studySessions: newSessions };
-                                       setData(newData);
-                                       saveData(newData);
-                                       setActiveTab('FLASHCARDS');
-                                       setFlashcardTab('SESSIONS');
-                                       prepareCramQueue(newSession, 'ALL');
-                                   }}>+ NEW CRAM</button>
-                               )}
-                           </div>
-                        )}
-                        {contextSessions.map(session => {
-                            let confScore = null;
-                            let rated = 0;
-                            if (session.cramState?.cardRatings) {
-                                const ratings = Object.values(session.cramState.cardRatings);
-                                rated = ratings.length;
-                                if (rated > 0) {
-                                    let score = 0;
-                                    ratings.forEach(r => {
-                                        if (r === 1) score += 50;
-                                        if (r === 2) score += 75;
-                                        if (r === 3) score += 100;
-                                    });
-                                    confScore = Math.round(score / rated);
-                                }
-                            }
-
-                            return (
-                               <div key={`ctx-sess-${session.id}`} style={{ marginBottom: '10px', background: 'var(--base)', border: '1px solid var(--muted)', padding: '10px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                     <div style={{ color: 'var(--text)', fontWeight: 'bold' }}>{session.name}</div>
-                                     <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--iris)', borderColor: 'var(--iris)' }} onClick={() => {
-                                         setActiveTab('FLASHCARDS');
-                                         setFlashcardTab('SESSIONS');
-                                         prepareCramQueue(session, 'ALL');
-                                     }}>STUDY</button>
-                                  </div>
-                                  <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>Decks: {session.deckIds.length} | Batch: {session.batchSize}</div>
-                                  {rated > 0 && (
-                                     <div style={{ marginTop: '5px', color: getConfidenceColor(confScore || 0), fontSize: '0.8rem', fontWeight: 'bold' }}>
-                                        Mastery: {confScore}% ({rated} Rated)
-                                     </div>
-                                  )}
-                               </div>
-                            );
-                        })}
-                        {currentSemester && currentLectureName && contextSessions.length === 0 && contextDecks.length > 0 && (
-                            <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '15px' }}>No active sessions, but decks are available.</div>
-                        )}
-
-                        {/* Tasks */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px', marginBottom: '10px' }}>
-                            <div style={{ color: 'var(--iris)', fontWeight: 'bold', fontSize: '0.9rem' }}>TASKS</div>
-                            <button className="button" style={{ padding: '2px 5px', fontSize: '0.7rem', color: 'var(--foam)', borderColor: 'var(--foam)' }} onClick={async () => { const title = await asyncPrompt('Enter new task for this lecture:');
-                                if (title) {
-                                    saveData({ ...data, todos: [...data.todos, { id: Date.now().toString(), title, status: false, link: currentPath }] });
-                                }
-                            }}>+ ADD TASK</button>
-                        </div>
-                        {contextTodos.map(todo => (
-                           <div key={`ctx-todo-${todo.id}`} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '0.9rem', alignItems: 'flex-start' }}>
-                              <span 
-                                style={{ color: todo.status ? 'var(--pine)' : 'var(--love)', cursor: 'pointer', fontWeight: 'bold', marginTop: '2px' }}
-                                onClick={() => {
-                                   const newData = { ...data, todos: data.todos.map(t => t.id === todo.id ? { ...t, status: !t.status } : t) };
-                                   saveData(newData);
-                                }}
-                              >
-                                [{todo.status ? 'X' : ' '}]
-                              </span>
-                              <span style={{ textDecoration: todo.status ? 'line-through' : 'none', color: todo.status ? 'var(--muted)' : 'var(--text)', lineHeight: '1.2' }}>
-                                {todo.title}
-                              </span>
-                           </div>
-                        ))}
-                        {contextTodos.length === 0 && <div style={{ color: 'var(--subtle)', fontSize: '0.8rem', marginBottom: '15px' }}>No tasks found for this path.</div>}
-
-                        {/* Notes */}
-                        <div style={{ color: 'var(--gold)', fontWeight: 'bold', marginTop: '20px', marginBottom: '10px', fontSize: '0.9rem' }}>LECTURE NOTES</div>
-                        <textarea
-                            value={data.lectureMeta?.[rootLecturePath]?.notes || ''}
-                            onChange={(e) => updateLectureMeta(rootLecturePath, { notes: e.target.value })}
-                            placeholder="Jot down quick thoughts, hints, or reminders for this lecture here..."
-                            style={{ width: '100%', height: '150px', background: 'var(--base)', color: 'var(--text)', border: '1px dashed var(--muted)', padding: '10px', fontFamily: 'inherit', resize: 'vertical', outline: 'none', borderRadius: '4px' }}
-                        />
-                     </>
-                   )
-                })()}
-            </div>
-          </div>
+          <LectureNexus ctx={ctx} />
         )}
-
-        {activeTab === 'MISSION_CONTROL' && (
-          <div className="mission-control">
-             {/* SYSTEM ALERTS */}
-             {renderAlerts()}
-
-             {/* TIMELINE MODULE (Moved to Top) */}
-             <div style={{ marginBottom: '30px', borderBottom: '1px dashed var(--muted)', paddingBottom: '20px' }}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ color: 'var(--iris)', margin: 0, fontSize: '1rem' }}>&gt; EXAM TIMELINE</h2>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--surface)', padding: '3px 8px', border: '1px dashed var(--muted)' }}>
-                       <span style={{ fontSize: '0.75rem', color: 'var(--subtle)' }}>Start:</span>
-                       <input type="date" value={data.examPeriodStart || ''} onChange={e => saveData({...data, examPeriodStart: e.target.value})} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', padding: '1px 3px', fontSize: '0.75rem', fontFamily: 'inherit' }} />
-                       <span style={{ fontSize: '0.75rem', color: 'var(--subtle)' }}>End:</span>
-                       <input type="date" value={data.examPeriodEnd || ''} onChange={e => saveData({...data, examPeriodEnd: e.target.value})} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', outline: 'none', padding: '1px 3px', fontSize: '0.75rem', fontFamily: 'inherit' }} />
-                    </div>
-                 </div>
-                 {renderTimeline()}
-             </div>
-
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
-                {/* LEFT COLUMN */}
-                <div>
-                  <h2 style={{ color: 'var(--iris)', marginBottom: '20px' }}>&gt; LECTURES</h2>
-
-                  {/* Add/Edit Exam Form */}
-                  <div style={{ marginBottom: '15px', display: 'flex', gap: '10px', background: 'var(--surface)', padding: '10px', border: `1px ${editingExamId ? 'solid var(--foam)' : 'dashed var(--muted)'}` }}>
-                    <input placeholder="Exam/Lecture Name" value={newExamName} onChange={e => setNewExamName(e.target.value)} style={{ flex: 2, background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} />
-                    <input type="date" value={newExamDate} onChange={e => setNewExamDate(e.target.value)} style={{ flex: 1, background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} />
-                    
-                    <input list="exam-paths" placeholder="Path (e.g. Semester 2/Math)" value={newExamLink} onChange={e => setNewExamLink(e.target.value)} style={{ flex: 2, background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} />
-                    <datalist id="exam-paths">
-                      {lectures.map(lec => (
-                        <option key={lec} value={`${selectedSemester}/${lec}`} />
-                      ))}
-                    </datalist>
-
-                    <button className="button" onClick={handleAddOrUpdateExam} style={{ padding: '5px 10px' }}>
-                       {editingExamId ? 'Update' : 'Add'}
-                    </button>
-                    {editingExamId && (
-                       <button className="button" onClick={cancelEditExam} style={{ padding: '5px 10px', color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
-                    )}
-                  </div>
-
-                  <div style={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '15px' }}>
-                  {[...data.exams]
-                    .filter(e => {
-                        const eSem = e.semester || (e.link ? e.link.split('/')[0] : selectedSemester);
-                        return eSem === selectedSemester;
-                    })
-                    .sort((a,b) => {
-                        if (!a.date && !b.date) return 0;
-                        if (!a.date) return 1;
-                        if (!b.date) return -1;
-                        return new Date(a.date).getTime() - new Date(b.date).getTime();
-                    })
-                    .map(exam => {
-                     const examDate = exam.date ? new Date(exam.date).getTime() : null;
-                     const today = new Date().getTime();
-                     const daysLeft = examDate ? Math.ceil((examDate - today) / (1000 * 3600 * 24)) : null;
-                     const autoConf = exam.link ? getCalculatedConfidence(exam.link) : null;
-                     const examParts = exam.link ? exam.link.split('/') : [];
-                     const activeSessions = (data.studySessions || []).filter(s => examParts.length >= 2 && s.linkedSemester === examParts[0] && s.linkedLecture === examParts[1]);
-
-                     return (
-                        <div key={exam.id} style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '15px', background: 'var(--base)', position: 'relative' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--gold)', marginBottom: '5px' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                               {exam.name}
-                               {exam.link && (() => {
-                                   const conf = data.confidences?.[exam.link] ?? null;
-                                   const color = conf !== null ? getConfidenceColor(conf) : 'var(--muted)';
-                                   const autoColor = autoConf !== null ? getConfidenceColor(autoConf) : 'var(--muted)';
-                                   return (
-                                       <span style={{ display: 'flex', gap: '5px' }}>
-                                           <span 
-                                               onClick={async (e) => { e.stopPropagation(); const val = await asyncPrompt(`Set confidence for ${exam.name} (0-100):`, conf !== null ? conf.toString() : '0');
-                                                   if (val !== null) updateConf(exam.link!, parseInt(val) || 0);
-                                               }}
-                                               style={{ color: color, fontSize: '0.7rem', border: `1px solid ${color}`, padding: '1px 4px', borderRadius: '3px', cursor: 'pointer' }}
-                                               title="Edit Manual Confidence"
-                                           >
-                                               {conf !== null ? `${conf}% CONF` : '--% CONF'}
-                                           </span>
-                                           {autoConf !== null && (
-                                               <span 
-                                                   style={{ color: autoColor, fontSize: '0.7rem', border: `1px solid ${autoColor}`, padding: '1px 4px', borderRadius: '3px' }}
-                                                   title="Auto Confidence from Flashcards"
-                                               >
-                                                   AUTO: {autoConf}%
-                                               </span>
-                                           )}
-                                           {activeSessions.length > 0 && (
-                                               <span style={{ color: 'var(--iris)', fontSize: '0.7rem', border: `1px solid var(--iris)`, padding: '1px 4px', borderRadius: '3px', cursor: 'pointer' }} onClick={() => { setActiveTab('FLASHCARDS'); setFlashcardTab('SESSIONS'); }}>
-                                                   {activeSessions.length} SESSIONS
-                                               </span>
-                                           )}
-                                       </span>
-                                   );
-                               })()}
-                            </span>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                               <span>{daysLeft !== null ? `T-Minus ${daysLeft} Days` : 'TBD'}</span>
-                              <span style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => cloneExam(exam)} title="Copy Exam">[COPY]</span>
-                              <span style={{ color: 'var(--foam)', cursor: 'pointer' }} onClick={() => startEditExam(exam)} title="Edit Exam">[EDIT]</span>
-                              <span style={{ color: 'var(--love)', cursor: 'pointer' }} onClick={() => handleDeleteExam(exam.id)} title="Delete Exam">[X]</span>
-                            </div>
-                          </div>
-                          <div style={{ color: (daysLeft ?? 0) < 7 ? 'var(--love)' : 'var(--pine)', fontWeight: 'bold' }}>
-                            {renderProgressBar(daysLeft ?? 0)}
-                          </div>
-                          {exam.link && (
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button className="link-button" onClick={() => navigateToLink(exam.link!)} style={{ fontSize: '0.85rem' }}>
-                                  &gt; JUMP TO FOLDER
-                                </button>
-                                <button className="link-button" onClick={() => fetch('/api/open', { method: 'POST', body: JSON.stringify({ filePath: exam.link, type: 'xournal' }) })} style={{ fontSize: '0.85rem', borderColor: 'var(--pine)', color: 'var(--pine)' }}>
-                                  &gt; LAUNCH NOTES
-                                </button>
-                                {activeSessions.length > 0 && (
-                                   <button className="link-button" onClick={() => { 
-                                       setActiveTab('FLASHCARDS'); 
-                                       setFlashcardTab('SESSIONS'); 
-                                       prepareCramQueue(activeSessions[0], 'ALL'); 
-                                   }} style={{ fontSize: '0.85rem', borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-                                     &gt; QUICK STUDY
-                                   </button>
-                                )}
-                            </div>
-                          )}
-                        </div>
-                     );
-                  })}
-                  </div>
-                </div>
-
-                {/* RIGHT COLUMN */}
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <h2 style={{ color: 'var(--iris)', marginBottom: '20px' }}>&gt; ACTION ITEMS</h2>
-
-                  {/* Add/Edit Action Item Form */}
-                  <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', background: 'var(--surface)', padding: '10px', border: `1px ${editingTodoId ? 'solid var(--foam)' : 'dashed var(--muted)'}` }}>
-                    <input placeholder="Task Title" value={newTodoTitle} onChange={e => setNewTodoTitle(e.target.value)} style={{ flex: 3, background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} />
-                    <input type="number" min="0" max="100" placeholder="0%" value={newTodoProgress} onChange={e => setNewTodoProgress(parseInt(e.target.value)||0)} style={{ width: '60px', background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} title="Progress %" />
-                    <input type="date" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)} style={{ width: '130px', background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} title="Due Date" />
-                    
-                    <input list="todo-paths" placeholder="Path (optional)" value={newTodoLink} onChange={e => setNewTodoLink(e.target.value)} style={{ flex: 2, background: 'var(--base)', border: '1px solid var(--muted)', color: 'var(--text)', padding: '5px', fontFamily: 'inherit', outline: 'none' }} />
-                    <datalist id="todo-paths">
-                      {lectures.map(lec => (
-                        <option key={lec} value={`${selectedSemester}/${lec}`} />
-                      ))}
-                    </datalist>
-
-                    <button className="button" onClick={handleAddOrUpdateTodo} style={{ padding: '5px 10px' }}>
-                        {editingTodoId ? 'Update' : 'Add'}
-                    </button>
-                    {editingTodoId && (
-                       <button className="button" onClick={cancelEditTodo} style={{ padding: '5px 10px', color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
-                    )}
-                  </div>
-                  
-
-                  {Object.entries(groupedTodos).map(([group, groupTodos]) => (
-                    <div key={group} style={{ marginBottom: '20px' }}>
-                      <div style={{ color: 'var(--gold)', marginBottom: '10px', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
-                        [{group.toUpperCase()}]
-                      </div>
-                      {groupTodos.map(todo => (
-                        <div key={todo.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', background: 'var(--base)', padding: '10px', border: '1px solid var(--muted)' }}>
-                          <span 
-                            style={{ color: todo.status ? 'var(--pine)' : 'var(--love)', cursor: 'pointer', fontWeight: 'bold' }}
-                            onClick={() => {
-                               const newData = { ...data, todos: data.todos.map(t => t.id === todo.id ? { ...t, status: !t.status } : t) };
-                               saveData(newData);
-                            }}
-                          >
-                            [{todo.status ? 'X' : ' '}]
-                          </span>
-                          <span style={{ textDecoration: todo.status ? 'line-through' : 'none', color: todo.status ? 'var(--muted)' : 'var(--text)' }}>
-                            {todo.title}
-                          </span>
-                          
-                          {todo.link && (
-                            <button className="link-button" style={{ marginLeft: 'auto', fontSize: '0.8rem' }} onClick={() => navigateToLink(todo.link)}>
-                              [JUMP TO LECTURE]
-                            </button>
-                          )}
-
-                          <span 
-                            style={{ color: 'var(--pine)', cursor: 'pointer', minWidth: '40px', fontSize: '0.8rem', textAlign: 'right', marginLeft: !todo.link ? 'auto' : '10px' }} 
-                            onClick={async () => {
-                                const val = await asyncPrompt('Enter progress (0-100):', (todo.progress || 0).toString());
-                                if (val !== null) {
-                                   const p = Math.max(0, Math.min(100, parseInt(val)||0));
-                                   saveData({ ...data, todos: data.todos.map(t => t.id === todo.id ? { ...t, progress: p } : t) });
-                                }
-                            }}
-                            title="Click to edit progress"
-                          >
-                            [{todo.progress || 0}%]
-                          </span>
-
-                          <span style={{ color: 'var(--gold)', cursor: 'pointer', marginLeft: '10px' }} onClick={() => cloneTodo(todo)} title="Copy Task">
-                            [COPY]
-                          </span>
-                          <span style={{ color: 'var(--foam)', cursor: 'pointer', marginLeft: '10px' }} onClick={() => startEditTodo(todo)} title="Edit Task">
-                            [EDIT]
-                          </span>
-                          <span style={{ color: 'var(--love)', cursor: 'pointer', marginLeft: '10px' }} onClick={() => handleDeleteTodo(todo.id)} title="Delete Task">
-                            [DEL]
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-             </div>
-          </div>
-        )}
-
-        {activeTab === 'PLANNER' && (
-          <div className="planner">
-             <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '30px' }}>
-                <div>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <button className="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>&lt; Prev</button>
-                      <h2 style={{ color: 'var(--iris)', margin: 0 }}>
-                          {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                      </h2>
-                      <button className="button" onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>Next &gt;</button>
-                   </div>
-                   
-                   {renderCalendar()}
-
-                   {/* Add/Edit Event Form */}
-                   <div style={{ display: 'flex', gap: '10px', marginTop: '20px', background: 'var(--surface)', padding: '15px', border: `1px ${editingEventId ? 'solid var(--foam)' : 'dashed var(--muted)'}` }}>
-                      <input placeholder="Event Title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{ flex: 2, background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                      <select value={newEventType} onChange={e => setNewEventType(e.target.value as any)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-                          <option value="study">Study Block</option>
-                          <option value="task">Deadline</option>
-                      </select>
-                      <input type="date" value={newEventStart} onChange={e => setNewEventStart(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                      <span style={{ color: 'var(--muted)', alignSelf: 'center' }}>to</span>
-                      <input type="date" value={newEventEnd} onChange={e => setNewEventEnd(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                      
-                      <button className="button" onClick={handleAddOrUpdateEvent}>
-                         {editingEventId ? 'Update' : 'Add'}
-                      </button>
-                      {editingEventId && (
-                         <button className="button" onClick={cancelEditEvent} style={{ color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
-                      )}
-                   </div>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                   <h2 style={{ color: 'var(--gold)', marginBottom: '20px' }}>&gt; EVENT MANAGER</h2>
-                   <div style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '15px', flex: 1, overflowY: 'auto' }}>
-                      {(data.events || []).length === 0 ? (
-                          <div style={{ color: 'var(--subtle)' }}>No events scheduled.</div>
-                      ) : (
-                          (data.events || []).sort((a,b) => a.startDate.localeCompare(b.startDate)).map(ev => (
-                              <div key={`mgr-${ev.id}`} style={{ marginBottom: '15px', borderBottom: '1px dashed var(--surface)', paddingBottom: '10px' }}>
-                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <span style={{ color: ev.type === 'study' ? 'var(--pine)' : 'var(--gold)' }}>{ev.title}</span>
-                                    <div>
-                                       <span style={{ color: 'var(--gold)', cursor: 'pointer', fontSize: '0.8rem', marginRight: '10px' }} onClick={() => cloneEvent(ev)}>[COPY]</span>
-                                       <span style={{ color: 'var(--foam)', cursor: 'pointer', fontSize: '0.8rem', marginRight: '10px' }} onClick={() => startEditEvent(ev)}>[EDIT]</span>
-                                       <span style={{ color: 'var(--love)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => handleDeleteEvent(ev.id)}>[DEL]</span>
-                                    </div>
-                                 </div>
-                                 <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>
-                                    {ev.startDate} {ev.startDate !== ev.endDate ? `to ${ev.endDate}` : ''}
-                                 </div>
-                              </div>
-                          ))
-                      )}
-                   </div>
-                </div>
-             </div>
-          </div>
-        )}
+        
         {activeTab === 'OVERVIEW' && (
           <div className="overview" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
               <div style={{ display: 'flex', gap: '20px', padding: '20px 20px 0 20px', borderBottom: '1px solid var(--muted)', alignItems: 'center' }}>
@@ -2397,494 +1762,23 @@ export default function Workspace() {
               </div>
           </div>
         )}
-
-        {activeTab === 'FLASHCARDS' && (
-          <div className="flashcards-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', color: 'var(--text)' }}>
-              {(!activeDeckId && !activeSessionId && !sessionBuilder && !studyMode) && (
-                  <div style={{ display: 'flex', padding: '10px 20px', borderBottom: '1px solid var(--muted)', gap: '20px' }}>
-                      <div style={{ cursor: 'pointer', color: flashcardTab === 'SESSIONS' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'SESSIONS' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('SESSIONS')}>STUDY SESSIONS</div>
-                      <div style={{ cursor: 'pointer', color: flashcardTab === 'LIBRARY' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'LIBRARY' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('LIBRARY')}>DECK LIBRARY</div>
-                  </div>
-              )}
-              
-              {activeSessionId ? (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                      {(() => {
-                          const session = (data.studySessions || []).find(s => s.id === activeSessionId);
-                          if (!session) return null;
-                          
-                          if (currentCardIndex >= cramQueue.length) {
-                              return (
-                                  <div style={{ textAlign: 'center' }}>
-                                      <h2 style={{ color: 'var(--pine)', marginBottom: '20px' }}>Batch Complete!</h2>
-                                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                                          <button className="button" onClick={() => prepareCramQueue(session, sessionStudyFilter || 'ALL')} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>Continue Next Batch</button>
-                                          <button className="button" onClick={() => { setActiveSessionId(null); setCramQueue([]); }} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>Stop Studying</button>
-                                      </div>
-                                  </div>
-                              );
-                          }
-                          
-                          const card = cramQueue[currentCardIndex];
-                          const progress = Math.round((currentCardIndex / cramQueue.length) * 100);
-                          
-                          return (
-                              <div style={{ width: '100%', maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--subtle)', fontSize: '0.9rem' }}>
-                                      <span>Session: {session.name}</span>
-                                      <span>Card {currentCardIndex + 1} / {cramQueue.length}</span>
-                                  </div>
-                                  <div style={{ width: '100%', height: '4px', background: 'var(--surface)', borderRadius: '2px' }}>
-                                      <div style={{ width: `${progress}%`, height: '100%', background: 'var(--pine)', borderRadius: '2px', transition: 'width 0.3s' }} />
-                                  </div>
-                                  
-                                  <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '40px', borderRadius: '8px', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} />
-                                  
-                                  {!showAnswer ? (
-                                      <button className="button" onClick={() => setShowAnswer(true)} style={{ color: 'var(--gold)', borderColor: 'var(--gold)', padding: '10px' }}>Show Answer</button>
-                                  ) : (
-                                      <>
-                                          <div className="card flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} style={{ background: 'var(--surface)', border: '1px solid var(--gold)', padding: '40px', borderRadius: '8px', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} />
-                                          <div style={{ display: 'flex', gap: '10px' }}>
-                                              <button className="button" onClick={() => handleRateCramCard(0)} style={{ flex: 1, borderColor: 'var(--love)', color: 'var(--love)' }}>Again</button>
-                                              <button className="button" onClick={() => handleRateCramCard(1)} style={{ flex: 1, borderColor: 'var(--rose)', color: 'var(--rose)' }}>Hard</button>
-                                              <button className="button" onClick={() => handleRateCramCard(2)} style={{ flex: 1, borderColor: 'var(--pine)', color: 'var(--pine)' }}>Good</button>
-                                              <button className="button" onClick={() => handleRateCramCard(3)} style={{ flex: 1, borderColor: 'var(--foam)', color: 'var(--foam)' }}>Easy</button>
-                                          </div>
-                                      </>
-                                  )}
-                                  
-                                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-                                      <button className="button" onClick={() => { setActiveSessionId(null); setCramQueue([]); }} style={{ color: 'var(--muted)', borderColor: 'transparent' }}>Abort Session</button>
-                                  </div>
-                              </div>
-                          );
-                      })()}
-                  </div>
-              ) : sessionBuilder ? (
-                  <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; SESSION BUILDER</h2>
-                          <button className="button" onClick={() => setSessionBuilder(null)} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>Cancel</button>
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '600px' }}>
-                          <div>
-                              <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Session Name</label>
-                              <input value={sessionBuilder.name} onChange={e => setSessionBuilder({ ...sessionBuilder, name: e.target.value })} placeholder="e.g. Midterm Cram" style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
-                          </div>
-                          <div style={{ display: 'flex', gap: '20px' }}>
-                              <div style={{ flex: 1 }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Mode</label>
-                                  <select value={sessionBuilder.mode} onChange={e => setSessionBuilder({ ...sessionBuilder, mode: e.target.value as any })} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }}>
-                                      <option value="cram">Cramming (Isolated)</option>
-                                      <option value="spaced">Spaced Repetition</option>
-                                  </select>
-                              </div>
-                              <div style={{ flex: 1 }}>
-                                  <label style={{ display: 'block', marginBottom: '5px', color: 'var(--subtle)' }}>Batch Size</label>
-                                  <input type="number" value={sessionBuilder.batchSize} onChange={e => setSessionBuilder({ ...sessionBuilder, batchSize: parseInt(e.target.value) || 20 })} style={{ width: '100%', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px', boxSizing: 'border-box' }} />
-                              </div>
-                          </div>
-                          
-                          <div style={{ marginTop: '20px' }}>
-                              <h3 style={{ color: 'var(--iris)', borderBottom: '1px solid var(--muted)', paddingBottom: '10px' }}>Include Decks & Cards</h3>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '10px' }}>
-                                  {(data.decks || []).filter(deck => !selectedSemester || deck.linkedSemester === selectedSemester).map(deck => {
-                                      const isDeckSelected = sessionBuilder.deckIds.includes(deck.id);
-                                      const expanded = expandedDecks[deck.id];
-                                      const selectedCardsCount = deck.cards.filter(c => sessionBuilder.cardIds.includes(c.id)).length;
-                                      
-                                      return (
-                                          <div key={deck.id} style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                  <button className="button" style={{ padding: '2px 8px', fontSize: '0.8rem', background: 'transparent', borderColor: 'var(--muted)', color: 'var(--text)' }} onClick={() => setExpandedDecks({...expandedDecks, [deck.id]: !expanded})}>
-                                                      {expanded ? '▼' : '▶'}
-                                                  </button>
-                                                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
-                                                      <input 
-                                                          type="checkbox" 
-                                                          checked={isDeckSelected} 
-                                                          onChange={e => {
-                                                              let newDeckIds = [...sessionBuilder.deckIds];
-                                                              let newCardIds = [...sessionBuilder.cardIds];
-                                                              
-                                                              if (e.target.checked) {
-                                                                  newDeckIds.push(deck.id);
-                                                                  // Remove individual card selections if whole deck is selected
-                                                                  newCardIds = newCardIds.filter(id => !deck.cards.find(c => c.id === id));
-                                                              } else {
-                                                                  newDeckIds = newDeckIds.filter(id => id !== deck.id);
-                                                              }
-                                                              setSessionBuilder({ ...sessionBuilder, deckIds: newDeckIds, cardIds: newCardIds });
-                                                          }} 
-                                                      />
-                                                      <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{deck.name}</span>
-                                                      <span style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>({deck.cards.length} cards{selectedCardsCount > 0 && !isDeckSelected ? `, ${selectedCardsCount} selected` : ''})</span>
-                                                  </label>
-                                              </div>
-                                              
-                                              {expanded && (
-                                                  <div style={{ paddingLeft: '40px', display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
-                                                      {deck.cards.map((card, i) => (
-                                                          <label key={card.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', opacity: isDeckSelected ? 0.5 : 1 }}>
-                                                              <input 
-                                                                  type="checkbox"
-                                                                  disabled={isDeckSelected}
-                                                                  checked={isDeckSelected || sessionBuilder.cardIds.includes(card.id)}
-                                                                  onChange={e => {
-                                                                      if (isDeckSelected) return;
-                                                                      let newCardIds = [...sessionBuilder.cardIds];
-                                                                      if (e.target.checked) newCardIds.push(card.id);
-                                                                      else newCardIds = newCardIds.filter(id => id !== card.id);
-                                                                      setSessionBuilder({ ...sessionBuilder, cardIds: newCardIds });
-                                                                  }}
-                                                              />
-                                                              <span style={{ color: 'var(--text)', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                  {i + 1}. {card.front.substring(0, 50)}{card.front.length > 50 ? '...' : ''}
-                                                              </span>
-                                                          </label>
-                                                      ))}
-                                                  </div>
-                                              )}
-                                          </div>
-                                      );
-                                  })}
-                                  {(data.decks || []).filter(deck => !selectedSemester || deck.linkedSemester === selectedSemester).length === 0 && <div style={{ color: 'var(--muted)' }}>No decks available for this semester.</div>}
-                              </div>
-                          </div>
-                          
-                          <button className="button" onClick={() => handleSaveSession(sessionBuilder)} style={{ marginTop: '20px', background: 'var(--gold)', color: 'var(--base)', fontWeight: 'bold' }}>Save Session</button>
-                      </div>
-                  </div>
-              ) : flashcardTab === 'SESSIONS' && !activeDeckId ? (
-                  <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; STUDY SESSIONS</h2>
-                          <button className="button" onClick={() => setSessionBuilder({ id: Date.now().toString(), name: 'New Session', mode: 'cram', deckIds: [], cardIds: [], batchSize: 20 })} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>+ NEW SESSION</button>
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                          {(data.studySessions || []).filter(s => !selectedSemester || s.linkedSemester === selectedSemester).map(session => (
-                              <div key={session.id} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                      <strong style={{ color: 'var(--pine)', fontSize: '1.2rem' }}>{session.name}</strong>
-                                      <span style={{ fontSize: '0.7rem', background: 'var(--surface)', padding: '2px 6px', borderRadius: '4px', color: 'var(--gold)' }}>{session.mode.toUpperCase()}</span>
-                                  </div>
-                                  <div style={{ color: 'var(--subtle)', fontSize: '0.9rem', marginBottom: '20px' }}>
-                                      Decks: {session.deckIds.length} | Batch Size: {session.batchSize}
-                                      {session.linkedLecture && <div style={{ marginTop: '5px', color: 'var(--iris)' }}>Lecture: {session.linkedLecture}</div>}
-                                      {(() => {
-                                          if (!session.cramState || !session.cramState.cardRatings) return null;
-                                          const ratings = Object.values(session.cramState.cardRatings);
-                                          if (ratings.length === 0) return null;
-                                          let counts = { again: 0, hard: 0, good: 0, easy: 0 };
-                                          let score = 0;
-                                          ratings.forEach(r => {
-                                              if (r === 0) counts.again++;
-                                              if (r === 1) { counts.hard++; score += 50; }
-                                              if (r === 2) { counts.good++; score += 75; }
-                                              if (r === 3) { counts.easy++; score += 100; }
-                                          });
-                                          const conf = Math.round(score / ratings.length);
-                                          return (
-                                              <div style={{ marginTop: '10px', padding: '10px', background: 'var(--surface)', borderRadius: '5px', fontSize: '0.8rem' }}>
-                                                  <div style={{ marginBottom: '5px', color: 'var(--text)' }}><strong>Statistics:</strong> {ratings.length} Cards Rated ({conf}% Mastery)</div>
-                                                  <div style={{ display: 'flex', gap: '10px' }}>
-                                                      <span style={{ color: 'var(--love)' }}>Again: {counts.again}</span>
-                                                      <span style={{ color: 'var(--rose)' }}>Hard: {counts.hard}</span>
-                                                      <span style={{ color: 'var(--pine)' }}>Good: {counts.good}</span>
-                                                      <span style={{ color: 'var(--foam)' }}>Easy: {counts.easy}</span>
-                                                  </div>
-                                              </div>
-                                          );
-                                      })()}
-                                  </div>
-                                  
-                                  <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
-                                      <button className="button" onClick={async () => {
-                                          const filter = await asyncPrompt('Study Filter: (ALL, HARD, EASY)', 'ALL');
-                                          if (filter && ['ALL', 'HARD', 'EASY'].includes(filter.toUpperCase())) {
-                                              prepareCramQueue(session, filter.toUpperCase() as any);
-                                          }
-                                      }} style={{ flex: 1, borderColor: 'var(--gold)', color: 'var(--gold)' }}>Study</button>
-                                      <button className="button" onClick={() => setSessionBuilder(session)} style={{ borderColor: 'var(--iris)', color: 'var(--iris)' }}>Edit</button>
-                                      <button className="button" onClick={async () => { if (await asyncConfirm('Delete session?')) handleDeleteSession(session.id); }} style={{ borderColor: 'var(--love)', color: 'var(--love)' }}>Del</button>
-                                  </div>
-                              </div>
-                          ))}
-                          {(data.studySessions || []).filter(s => !selectedSemester || s.linkedSemester === selectedSemester).length === 0 && (
-                              <div style={{ color: 'var(--muted)' }}>No study sessions created yet for this semester. Click "+ NEW SESSION" to begin.</div>
-                          )}
-                      </div>
-                  </div>
-              ) : !activeDeckId ? (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                          <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; FLASHCARD ENGINE</h2>
-                          {!selectedSemester && <span style={{ color: 'var(--subtle)' }}>Please select a semester in the left sidebar</span>}
-                      </div>
-                      
-                      {selectedSemester && (() => {
-                          const renderCategory = (title: string, lecDecks: Deck[], lecName: string) => (
-                              <div key={title} style={{ marginBottom: '40px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px dashed var(--muted)', paddingBottom: '10px', marginBottom: '15px' }}>
-                                      <h3 style={{ color: 'var(--iris)', margin: 0 }}>{title}</h3>
-                                      <div style={{ display: 'flex', gap: '10px' }}>
-                                          <button className="button" style={{ fontSize: '0.8rem', padding: '4px 10px', borderColor: 'var(--pine)', color: 'var(--pine)' }} onClick={() => handleCreateDeck(selectedSemester, lecName)}>+ NEW DECK</button>
-                                          <button className="button" style={{ fontSize: '0.8rem', padding: '4px 10px', borderColor: 'var(--foam)', color: 'var(--foam)' }} onClick={() => setImportModalData({ semester: selectedSemester, lecture: lecName })}>+ IMPORT DECK</button>
-                                      </div>
-                                  </div>
-                                  
-                                  {lecDecks.length === 0 ? (
-                                      <div style={{ color: 'var(--muted)' }}>No decks in this category.</div>
-                                  ) : (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-                                          {lecDecks.map(deck => {
-                                              const now = new Date();
-                                              const dueCards = deck.cards.filter(c => !c.nextReview || new Date(c.nextReview) <= now);
-                                              return (
-                                                  <div key={deck.id} style={{ background: 'var(--base)', border: '1px solid var(--muted)', padding: '20px', width: '300px', display: 'flex', flexDirection: 'column', borderRadius: '4px', position: 'relative' }}>
-                                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', alignItems: 'center', gap: '10px' }}>
-                                                          <strong style={{ color: 'var(--pine)', fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{deck.name}</strong>
-                                                          {dueCards.length > 0 ? (
-                                                              <span style={{ background: 'var(--love)', color: 'var(--base)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 'bold', flexShrink: 0 }}>{dueCards.length} DUE</span>
-                                                          ) : (
-                                                              <span style={{ background: 'var(--surface)', color: 'var(--muted)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 'bold', flexShrink: 0 }}>DONE</span>
-                                                          )}
-                                                      </div>
-                                                      <div style={{ color: 'var(--subtle)', marginBottom: '20px' }}>{deck.cards.length} Total Cards</div>
-                                                      <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
-                                                          <button className="button" disabled={dueCards.length === 0} onClick={() => { setActiveDeckId(deck.id); setCurrentCardIndex(0); setShowAnswer(false); setStudyMode(true); }} style={{ flex: 1, borderColor: 'var(--gold)', color: 'var(--gold)', opacity: dueCards.length === 0 ? 0.3 : 1 }}>Study Now</button>
-                                                          <button className="button" onClick={() => { setActiveDeckId(deck.id); setStudyMode(false); }} style={{ borderColor: 'var(--iris)', color: 'var(--iris)' }}>Manage</button>
-                                                      </div>
-                                                  </div>
-                                              );
-                                          })}
-                                      </div>
-                                  )}
-                              </div>
-                          );
-
-                          const blocks = lectures.map(lec => {
-                              const lecDecks = (data.decks || []).filter(d => d.linkedSemester === selectedSemester && d.linkedLecture === lec);
-                              return renderCategory(`📁 ${lec}`, lecDecks, lec);
-                          });
-
-                          const uncategorizedDecks = (data.decks || []).filter(d => d.linkedSemester === selectedSemester && (!d.linkedLecture || !lectures.includes(d.linkedLecture)));
-                          if (uncategorizedDecks.length > 0) {
-                              blocks.push(renderCategory('General / Uncategorized', uncategorizedDecks, ''));
-                          }
-
-                          return blocks;
-                      })()}
-                      
-                      {availableDecks.filter(ad => !selectedSemester || ad.semester === selectedSemester).length > 0 && (
-                          <div style={{ marginTop: '40px' }}>
-                              <h3 style={{ color: 'var(--foam)', borderBottom: '1px solid var(--muted)', paddingBottom: '10px' }}>Available Decks (Not Imported)</h3>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
-                                  {availableDecks.filter(ad => !selectedSemester || ad.semester === selectedSemester).map(ad => (
-                                      <div key={ad.path} className="card" style={{ background: 'var(--base)', border: '1px dashed var(--muted)', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-                                          <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>{ad.lecture}</div>
-                                          <div className="card-title" style={{ fontSize: '1.2rem', marginBottom: '15px' }}>{ad.name}</div>
-                                          <div style={{ marginTop: 'auto' }}>
-                                              <button className="button" onClick={() => handleImportFile(ad)} disabled={importLoading} style={{ width: '100%', borderColor: 'var(--foam)', color: 'var(--foam)', opacity: importLoading ? 0.5 : 1 }}>
-                                                  {importLoading ? 'Importing...' : 'Import Deck'}
-                                              </button>
-                                          </div>
-                                      </div>
-                                  ))}
-                              </div>
-                          </div>
-                      )}
-                  </div>
-              ) : studyMode ? (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                      {(() => {
-                          const deck = (data.decks || []).find(d => d.id === activeDeckId);
-                          if (!deck) return null;
-                          const now = new Date();
-                          const dueCards = deck.cards.filter(c => !c.nextReview || new Date(c.nextReview) <= now);
-                          
-                          if (currentCardIndex >= dueCards.length) {
-                              return (
-                                  <div style={{ textAlign: 'center' }}>
-                                      <h2 style={{ color: 'var(--pine)', marginBottom: '20px' }}>Deck Complete!</h2>
-                                      <button className="button" onClick={() => { setActiveDeckId(null); setStudyMode(false); }} style={{ borderColor: 'var(--pine)', color: 'var(--pine)' }}>Return to Decks</button>
-                                  </div>
-                              );
-                          }
-                          
-                          const card = dueCards[currentCardIndex];
-                          
-                          return (
-                              <div style={{ width: '100%', maxWidth: '800px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                  <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', marginBottom: '20px', color: 'var(--subtle)' }}>
-                                      <span>Deck: <strong style={{ color: 'var(--pine)' }}>{deck.name}</strong></span>
-                                      <span>Card {currentCardIndex + 1} / {dueCards.length}</span>
-                                  </div>
-                                  
-                                  <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--surface)', padding: '40px', borderRadius: '8px', border: '1px solid var(--muted)', marginBottom: '20px', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
-                                  
-                                  {showAnswer ? (
-                                      <>
-                                          <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--hl-low)', padding: '40px', borderRadius: '8px', border: '1px dashed var(--gold)', marginBottom: '30px', fontSize: '1.2rem', textAlign: 'center', color: 'var(--gold)', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
-                                          <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
-                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 0)} style={{ borderColor: 'var(--love)', color: 'var(--love)', flex: 1 }}>Again<br/>(0m)</button>
-                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 1)} style={{ borderColor: 'var(--rose)', color: 'var(--rose)', flex: 1 }}>Hard<br/>({(card.interval || 0) === 0 ? '1d' : Math.round((card.interval || 6) * (card.ease || 2.5) * 0.8) + 'd'})</button>
-                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 2)} style={{ borderColor: 'var(--pine)', color: 'var(--pine)', flex: 1 }}>Good<br/>({(card.interval || 0) === 0 ? '1d' : card.interval === 1 ? '6d' : Math.round((card.interval || 6) * (card.ease || 2.5)) + 'd'})</button>
-                                              <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 3)} style={{ borderColor: 'var(--foam)', color: 'var(--foam)', flex: 1 }}>Easy<br/>({(card.interval || 0) === 0 ? '1d' : card.interval === 1 ? '6d' : Math.round((card.interval || 6) * (card.ease || 2.5) * 1.3) + 'd'})</button>
-                                          </div>
-                                      </>
-                                  ) : (
-                                      <button className="button" onClick={() => setShowAnswer(true)} style={{ width: '100%', padding: '15px', fontSize: '1.2rem', fontWeight: 'bold', borderColor: 'var(--gold)', color: 'var(--gold)' }}>
-                                          Show Answer
-                                      </button>
-                                  )}
-                                  
-                                  <div style={{ marginTop: '30px' }}>
-                                      <button className="button" onClick={() => { setActiveDeckId(null); setStudyMode(false); }} style={{ color: 'var(--muted)', borderColor: 'transparent' }}>Abort Study Session</button>
-                                  </div>
-                              </div>
-                          );
-                      })()}
-                  </div>
-              ) : (
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
-                      {(() => {
-                          const deck = (data.decks || []).find(d => d.id === activeDeckId);
-                          if (!deck) return null;
-                          return (
-                              <>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                          <button className="button" onClick={() => setActiveDeckId(null)} style={{ borderColor: 'var(--muted)', color: 'var(--text)' }}>&lt; Back</button>
-                                          <h2 style={{ color: 'var(--iris)', margin: 0 }}>Managing: {deck.name}</h2>
-                                      </div>
-                                      <div style={{ display: 'flex', gap: '10px' }}>
-                                          <button className="button" onClick={() => setDeckSettingsModal({ isOpen: true, deckId: deck.id, defaultSemester: deck.linkedSemester, defaultLecture: deck.linkedLecture })} style={{ borderColor: 'var(--iris)', color: 'var(--iris)', fontWeight: 'bold' }}>⚙️ SETTINGS</button>
-                                          <button className="button" onClick={() => setEditingCard({ front: '', back: '' })} style={{ borderColor: 'var(--foam)', color: 'var(--foam)', fontWeight: 'bold' }}>+ NEW CARD</button>
-                                          <button className="button" onClick={() => {
-                                              asyncConfirm(`Delete deck "${deck.name}" entirely?`).then(res => {
-                                                  if (res) {
-                                                      const newDecks = (data.decks || []).filter(d => d.id !== deck.id);
-                                                      setData({...data, decks: newDecks});
-                                                      saveData({...data, decks: newDecks});
-                                                      setActiveDeckId(null);
-                                                  }
-                                              });
-                                          }} style={{ borderColor: 'var(--love)', color: 'var(--love)', fontWeight: 'bold' }}>DELETE DECK</button>
-                                      </div>
-                                  </div>
-                                  
-                                  {editingCard && (
-                                      <div style={{ background: 'var(--surface)', padding: '20px', borderRadius: '8px', border: '1px solid var(--gold)', marginBottom: '30px' }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                              <h3 style={{ color: 'var(--gold)', margin: 0 }}>{editingCard.id ? 'Edit Card' : 'New Card'}</h3>
-                                              <button className="button" onClick={() => setEditingPreview(!editingPreview)} style={{ padding: '5px 10px', fontSize: '0.8rem' }}>
-                                                  {editingPreview ? 'Show Editor' : 'Live Preview'}
-                                              </button>
-                                          </div>
-                                          
-                                          {editingPreview ? (
-                                              <div style={{ display: 'flex', gap: '20px', flexDirection: 'column' }}>
-                                                  <div style={{ background: 'var(--base)', padding: '15px', borderRadius: '6px', border: '1px solid var(--surface)' }}>
-                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
-                                                      <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.front) }} />
-                                                  </div>
-                                                  <div style={{ background: 'var(--hl-low)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--gold)', color: 'var(--gold)' }}>
-                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
-                                                      <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.back) }} />
-                                                  </div>
-                                              </div>
-                                          ) : (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                                  <div>
-                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
-                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, front: editingCard.front + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
-                                                      </div>
-                                                      <textarea placeholder="Front (Question)" value={editingCard.front} onChange={e => setEditingCard({...editingCard, front: e.target.value})} onPaste={e => handlePaste(e, 'front')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
-                                                  </div>
-                                                  
-                                                  <div>
-                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
-                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, back: editingCard.back + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
-                                                      </div>
-                                                      <textarea placeholder="Back (Answer)" value={editingCard.back} onChange={e => setEditingCard({...editingCard, back: e.target.value})} onPaste={e => handlePaste(e, 'back')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
-                                                  </div>
-                                              </div>
-                                          )}
-                                          
-                                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '15px' }}>
-                                              <button className="button" onClick={() => setEditingCard(null)} style={{ color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
-                                              <button className="button" onClick={handleSaveCard} style={{ background: 'var(--pine)', color: 'var(--base)', borderColor: 'var(--pine)', fontWeight: 'bold' }}>Save Card</button>
-                                          </div>
-                                      </div>
-                                  )}
-                                  
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <input 
-                                              type="text" 
-                                              placeholder="Search cards..." 
-                                              value={searchCardQuery} 
-                                              onChange={e => setSearchCardQuery(e.target.value)} 
-                                              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px 15px', borderRadius: '4px', width: '300px' }} 
-                                          />
-                                      </div>
-                                      
-                                      {deck.cards.length === 0 ? (
-                                          <div style={{ color: 'var(--muted)', textAlign: 'center', marginTop: '20px' }}>No cards in this deck yet.</div>
-                                      ) : deck.cards.filter(c => !searchCardQuery || c.front.toLowerCase().includes(searchCardQuery.toLowerCase()) || c.back.toLowerCase().includes(searchCardQuery.toLowerCase())).map(card => (
-                                          <div key={card.id} style={{ display: 'flex', background: 'var(--base)', border: '1px solid var(--surface)', borderRadius: '6px', overflow: 'hidden' }}>
-                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px dashed var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
-                                                  <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
-                                              </div>
-                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px solid var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--gold)' }}>
-                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
-                                                  <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
-                                              </div>
-                                              <div style={{ width: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', background: 'var(--hl-low)', padding: '10px' }}>
-                                                  <div style={{ fontSize: '0.7rem', color: 'var(--subtle)', textAlign: 'center' }}>
-                                                     Ease: {card.ease?.toFixed(2) || '2.50'}<br/>
-                                                     Int: {card.interval || 0}d
-                                                  </div>
-                                                  <button className="button" onClick={() => { setEditingCard(card); setEditingPreview(false); }} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--foam)', color: 'var(--foam)' }}>Edit</button>
-                                                  <button className="button" onClick={() => handleDeleteCard(card.id)} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--love)', color: 'var(--love)' }}>Delete</button>
-                                                  
-                                                  <select 
-                                                      className="button" 
-                                                      style={{ width: '100%', fontSize: '0.75rem', padding: '5px', borderColor: 'var(--muted)', color: 'var(--text)', background: 'transparent' }}
-                                                      onChange={(e) => {
-                                                          if (e.target.value) handleMoveCard(card.id, e.target.value);
-                                                          e.target.value = '';
-                                                      }}
-                                                      value=""
-                                                  >
-                                                      <option value="" disabled>Move to...</option>
-                                                      {(data.decks || []).filter(d => d.id !== deck.id).map(d => (
-                                                          <option key={d.id} value={d.id}>{d.name}</option>
-                                                      ))}
-                                                  </select>
-                                              </div>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </>
-                          );
-                      })()}
-                  </div>
-              )}
-          </div>
-        )}
+        
+        {activeTab === 'FLASHCARDS' && <FlashcardManager ctx={ctx} />}
+        {activeTab === 'PLANNER' && <Planner ctx={ctx} />}
       </div>
+
+      {rightPanelMode !== 'HIDDEN' && !studyMode && (
+        <div className="right-panel" style={{ width: '400px', background: 'var(--surface)', borderLeft: '2px dashed var(--muted)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', padding: '15px', gap: '10px', borderBottom: '1px solid var(--muted)' }}>
+            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'PLANNER' ? 'var(--gold)' : 'var(--muted)', color: rightPanelMode === 'PLANNER' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setRightPanelMode('PLANNER')}>PLANNER</button>
+            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'WIDGETS' ? 'var(--foam)' : 'var(--muted)', color: rightPanelMode === 'WIDGETS' ? 'var(--foam)' : 'var(--text)' }} onClick={() => setRightPanelMode('WIDGETS')}>WIDGETS</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
+            {rightPanelMode === 'PLANNER' && <Planner ctx={ctx} />}
+            {rightPanelMode === 'WIDGETS' && <WidgetPanel appConfig={appConfig} />}
+          </div>
+        </div>
+      )}
 
       {showCommandPalette && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', paddingTop: '10vh', backdropFilter: 'blur(4px)' }} onClick={() => setShowCommandPalette(false)}>
