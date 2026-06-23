@@ -41,7 +41,7 @@ export default function ActionItems({ ctx }: { ctx: any }) {
                         [{group.toUpperCase()}]
                     </div>
                     {groupTodos.map((todo: any) => (
-                        <div key={todo.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', background: 'var(--base)', padding: '10px', border: '1px solid var(--muted)' }}>
+                        <div key={todo.id} className="hover-glow" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', background: 'var(--base)', padding: '10px', border: '1px solid var(--muted)', borderLeft: '4px solid ' + (todo.status ? 'var(--pine)' : 'var(--love)') }}>
                             <span 
                                 style={{ color: todo.status ? 'var(--pine)' : 'var(--love)', cursor: 'pointer', fontWeight: 'bold' }}
                                 onClick={() => {

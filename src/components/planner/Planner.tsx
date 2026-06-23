@@ -40,7 +40,7 @@ export default function Planner({ ctx }: { ctx: any }) {
           }) || [];
 
           days.push(
-              <div key={dateStr} style={{ border: `1px solid ${isToday ? 'var(--foam)' : 'var(--muted)'}`, minHeight: '90px', padding: '5px', background: 'var(--base)', display: 'flex', flexDirection: 'column' }}>
+              <div key={dateStr} className="hover-glow" style={{ border: `1px solid ${isToday ? 'var(--foam)' : 'var(--muted)'}`, minHeight: '90px', padding: '5px', background: 'var(--base)', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ textAlign: 'right', fontSize: '0.8rem', color: isToday ? 'var(--foam)' : 'var(--subtle)' }}>{d}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '5px', flex: 1, overflowY: 'auto' }}>
                       {dayExams.map((exam: any) => (
@@ -110,7 +110,7 @@ export default function Planner({ ctx }: { ctx: any }) {
                     <div style={{ color: 'var(--subtle)' }}>No events scheduled.</div>
                 ) : (
                     (data.events || []).sort((a: any,b: any) => a.startDate.localeCompare(b.startDate)).map((ev: any) => (
-                        <div key={`mgr-${ev.id}`} style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '10px', background: 'var(--base)' }}>
+                        <div key={`mgr-${ev.id}`} className="hover-glow" style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '10px', background: 'var(--base)', borderLeft: '4px solid ' + (ev.type === 'study' ? 'var(--pine)' : 'var(--gold)') }}>
                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
                               <span style={{ color: ev.type === 'study' ? 'var(--pine)' : 'var(--gold)', fontWeight: 'bold' }}>{ev.title}</span>
                               <div style={{ display: 'flex', gap: '10px' }}>

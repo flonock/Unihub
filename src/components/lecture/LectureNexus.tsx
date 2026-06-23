@@ -188,7 +188,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                    <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '10px' }}>
                       {files.length === 0 ? <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>[ NO FILES FOUND ]</div> : null}
                       {files.map((file: any) => (
-                         <div key={file.path} className="sub-panel" style={{ padding: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => handleInlineOpen(file)}>
+                         <div key={file.path} className="sub-panel hover-glow" style={{ padding: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => handleInlineOpen(file)}>
                             <span style={{ fontSize: '1.2rem' }}>{file.isDirectory ? '📁' : (file.ext === 'pdf' ? '📄' : (file.ext === 'xopp' ? '📓' : '📝'))}</span>
                             <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.85rem' }}>{file.name}</span>
                             {!file.isDirectory && (
@@ -262,7 +262,7 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                 </div>
 
                 {isGeneratingFlashcard && (
-                    <div className="sub-panel" style={{ marginBottom: '10px', border: '1px solid var(--pine)' }}>
+                    <div className="sub-panel hover-glow" style={{ marginBottom: '10px', border: '1px solid var(--pine)' }}>
                         <div style={{ color: 'var(--pine)', fontWeight: 'bold', marginBottom: '10px', fontSize: '0.9rem' }}>+ NEW FLASHCARD</div>
                         <textarea value={newFlashcardFront} onChange={e => setNewFlashcardFront(e.target.value)} placeholder="Front" style={{ width: '100%', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', marginBottom: '5px', fontFamily: 'inherit', resize: 'vertical' }} />
                         <textarea value={newFlashcardBack} onChange={e => setNewFlashcardBack(e.target.value)} placeholder="Back" style={{ width: '100%', background: 'var(--overlay)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '5px', marginBottom: '5px', fontFamily: 'inherit', resize: 'vertical' }} />
