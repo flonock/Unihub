@@ -58,7 +58,7 @@ export default function Dashboard({ ctx }: { ctx: any }) {
             
             <div className="panel">
               <div className="panel-header">
-                <span>&gt; URGENCY MATRIX (EXAMS & LECTURES)</span>
+                <span>&gt; Priority Overview (Exams & Lectures)</span>
                 <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', borderColor: 'var(--foam)', color: 'var(--foam)' }} onClick={() => setIsExamModalOpen(true)}>
                     <Icons.Plus size={14} /> NEW EXAM
                 </button>

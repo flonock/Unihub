@@ -18,7 +18,7 @@ export default function Sidebar({ ctx }: { ctx: any }) {
       {/* QUICK ACTIONS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
          <button className="button" style={{ borderColor: activeTab === 'MISSION_CONTROL' ? 'var(--iris)' : 'var(--muted)', color: activeTab === 'MISSION_CONTROL' ? 'var(--iris)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => { setActiveTab('MISSION_CONTROL'); setCurrentPath(''); }}>
-             <Icons.Plus size={14} /> COMMAND CENTER
+             <Icons.Plus size={14} /> Dashboard
          </button>
          <button className="button" style={{ borderColor: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--muted)', color: activeTab === 'FLASHCARDS' ? 'var(--pine)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => { setActiveTab('FLASHCARDS'); if (ctx.setFlashcardTab) ctx.setFlashcardTab('LIBRARY'); }}>
              <Icons.Plus size={14} /> FLASHCARD DB
