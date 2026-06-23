@@ -567,3 +567,24 @@ input[type=range]::-webkit-slider-runnable-track {
 input[type=range]:focus {
   outline: none;
 }
+
+/* Dashboard Enhancements */
+.metric-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.2) !important;
+  border-color: var(--iris) !important;
+}
+
+.hover-glow {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  border-color: var(--foam) !important;
+}
