@@ -92,6 +92,7 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                   <div style={{ display: 'flex', padding: '10px 20px', borderBottom: '1px solid var(--muted)', gap: '20px' }}>
                       <div style={{ cursor: 'pointer', color: flashcardTab === 'SESSIONS' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'SESSIONS' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('SESSIONS')}>STUDY SESSIONS</div>
                       <div style={{ cursor: 'pointer', color: flashcardTab === 'LIBRARY' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'LIBRARY' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('LIBRARY')}>DECK LIBRARY</div>
+                      <div style={{ cursor: 'pointer', color: flashcardTab === 'BUFFL' ? 'var(--gold)' : 'var(--subtle)', fontWeight: flashcardTab === 'BUFFL' ? 'bold' : 'normal' }} onClick={() => setFlashcardTab('BUFFL')}>BUFFL WEB</div>
                   </div>
               )}
               
@@ -315,7 +316,23 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                           )}
                       </div>
                   </div>
-              ) : !activeDeckId ? (
+              ) : flashcardTab === 'BUFFL' && !activeDeckId ? (
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      <div style={{ padding: '10px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--subtle)', fontSize: '0.9rem' }}>If the web view fails to load (due to browser security policies), you can launch the standalone window.</span>
+                          <button className="button" onClick={() => window.open('https://app.buffl.co', 'Buffl', 'width=1200,height=800,toolbar=0,menubar=0,location=0,status=0')} style={{ borderColor: 'var(--foam)', color: 'var(--foam)' }}>
+                              Launch Standalone Window
+                          </button>
+                      </div>
+                      <div style={{ flex: 1, position: 'relative', background: '#ffffff' }}>
+                          <iframe 
+                              src="https://app.buffl.co" 
+                              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} 
+                              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                          />
+                      </div>
+                  </div>
+              ) : flashcardTab === 'LIBRARY' && !activeDeckId ? (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', overflowY: 'auto' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                           <h2 style={{ color: 'var(--gold)', margin: 0 }}>&gt; FLASHCARD ENGINE</h2>
@@ -378,14 +395,14 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                       
                       {availableDecks.filter((ad: any) => !selectedSemester || ad.semester === selectedSemester).length > 0 && (
                           <div style={{ marginTop: '40px' }}>
-                              <h3 style={{ color: 'var(--foam)', borderBottom: '1px solid var(--muted)', paddingBottom: '10px' }}>Available Decks (Not Imported)</h3>
+                              <h3 style={{ color: 'var(--foam)', borderBottom: '1px solid rgba(110, 106, 134, 0.2)', paddingBottom: '10px' }}>Available Decks (Not Imported)</h3>
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginTop: '20px' }}>
                                   {availableDecks.filter((ad: any) => !selectedSemester || ad.semester === selectedSemester).map((ad: any) => (
-                                      <div key={ad.path} className="card" style={{ background: 'var(--base)', border: '1px dashed var(--muted)', padding: '20px', borderRadius: '8px', display: 'flex', flexDirection: 'column' }}>
-                                          <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>{ad.lecture}</div>
+                                      <div key={ad.path} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+                                          <div style={{ fontSize: '0.85rem', color: 'var(--subtle)', marginBottom: '5px', fontWeight: 500 }}>{ad.lecture}</div>
                                           <div className="card-title" style={{ fontSize: '1.2rem', marginBottom: '15px' }}>{ad.name}</div>
                                           <div style={{ marginTop: 'auto' }}>
-                                              <button className="button" onClick={() => handleImportFile(ad)} disabled={importLoading} style={{ width: '100%', borderColor: 'var(--foam)', color: 'var(--foam)', opacity: importLoading ? 0.5 : 1 }}>
+                                              <button className="button" onClick={() => handleImportFile(ad)} disabled={importLoading} style={{ width: '100%', borderColor: 'rgba(156, 207, 216, 0.5)', color: 'var(--foam)', opacity: importLoading ? 0.5 : 1 }}>
                                                   {importLoading ? 'Importing...' : 'Import Deck'}
                                               </button>
                                           </div>
@@ -421,11 +438,11 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                                       <span>Card {currentCardIndex + 1} / {dueCards.length}</span>
                                   </div>
                                   
-                                  <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--surface)', padding: '40px', borderRadius: '8px', border: '1px solid var(--muted)', marginBottom: '20px', fontSize: '1.2rem', textAlign: 'center', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
+                                  <div className="flashcard-content panel" style={{ width: '100%', minHeight: '200px', padding: '40px', marginBottom: '20px', fontSize: '1.25rem', textAlign: 'center', whiteSpace: 'pre-wrap', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
                                   
                                   {showAnswer ? (
                                       <>
-                                          <div className="flashcard-content" style={{ width: '100%', minHeight: '200px', background: 'var(--hl-low)', padding: '40px', borderRadius: '8px', border: '1px dashed var(--gold)', marginBottom: '30px', fontSize: '1.2rem', textAlign: 'center', color: 'var(--gold)', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
+                                          <div className="flashcard-content sub-panel" style={{ width: '100%', minHeight: '200px', padding: '40px', border: '1px solid rgba(246, 193, 119, 0.3)', marginBottom: '30px', fontSize: '1.25rem', textAlign: 'center', color: 'var(--gold)', whiteSpace: 'pre-wrap', display: 'flex', alignItems: 'center', justifyContent: 'center' }} dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
                                           <div style={{ display: 'flex', gap: '15px', width: '100%' }}>
                                               <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 0)} style={{ borderColor: 'var(--love)', color: 'var(--love)', flex: 1 }}>Again<br/>(0m)</button>
                                               <button className="button" onClick={() => handleScoreCard(deck.id, card.id, 1)} style={{ borderColor: 'var(--rose)', color: 'var(--rose)', flex: 1 }}>Hard<br/>({(card.interval || 0) === 0 ? '1d' : Math.round((card.interval || 6) * (card.ease || 2.5) * 0.8) + 'd'})</button>
@@ -475,51 +492,51 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                                   </div>
                                   
                                   {editingCard && (
-                                      <div style={{ borderRadius: '8px', border: '1px solid var(--gold)', boxShadow: '0 0 15px rgba(234, 157, 52, 0.2)', padding: '50px', background: 'var(--base)', marginBottom: '30px' }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                                              <h3 style={{ color: 'var(--gold)', margin: 0 }}>{editingCard.id ? 'Edit Card' : 'New Card'}</h3>
-                                              <button className="button" onClick={() => setEditingPreview(!editingPreview)} style={{ padding: '5px 10px', fontSize: '0.8rem' }}>
+                                      <div className="panel" style={{ padding: '30px', marginBottom: '30px', animation: 'slideUp 0.3s ease-out' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                              <h3 style={{ color: 'var(--text)', margin: 0, fontWeight: 600 }}>{editingCard.id ? 'Edit Card' : 'New Card'}</h3>
+                                              <button className="button" onClick={() => setEditingPreview(!editingPreview)} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
                                                   {editingPreview ? 'Show Editor' : 'Live Preview'}
                                               </button>
                                           </div>
                                           
                                           {editingPreview ? (
                                               <div style={{ display: 'flex', gap: '20px', flexDirection: 'column' }}>
-                                                  <div style={{ background: 'var(--base)', padding: '15px', borderRadius: '6px', border: '1px solid var(--surface)' }}>
-                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
+                                                  <div className="sub-panel">
+                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '8px', fontWeight: 600 }}>FRONT</div>
                                                       <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.front) }} />
                                                   </div>
-                                                  <div style={{ background: 'var(--hl-low)', padding: '15px', borderRadius: '6px', border: '1px dashed var(--gold)', color: 'var(--gold)' }}>
-                                                      <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
+                                                  <div className="sub-panel" style={{ border: '1px solid rgba(246, 193, 119, 0.3)' }}>
+                                                      <div style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '8px', fontWeight: 600 }}>BACK</div>
                                                       <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(editingCard.back) }} />
                                                   </div>
                                               </div>
                                           ) : (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                                   <div>
-                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
-                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, front: editingCard.front + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
+                                                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<b></b>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>B</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<i></i>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>I</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, front: editingCard.front + '<code></code>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>Code</button>
+                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, front: editingCard.front + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>Img</button>
                                                       </div>
-                                                      <textarea placeholder="Front (Question)" value={editingCard.front} onChange={e => setEditingCard({...editingCard, front: e.target.value})} onPaste={e => handlePaste(e, 'front')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', borderRadius: '4px', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
+                                                      <textarea className="unified-input" placeholder="Front (Question)" value={editingCard.front} onChange={e => setEditingCard({...editingCard, front: e.target.value})} onPaste={e => handlePaste(e, 'front')} style={{ minHeight: '100px', resize: 'vertical' }} />
                                                   </div>
                                                   
                                                   <div>
-                                                      <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<b></b>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>B</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<i></i>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>I</button>
-                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<code></code>'})} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Code</button>
-                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, back: editingCard.back + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '2px 8px', fontSize: '0.8rem' }}>Img</button>
+                                                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<b></b>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>B</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<i></i>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>I</button>
+                                                          <button className="button" onClick={() => setEditingCard({...editingCard, back: editingCard.back + '<code></code>'})} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>Code</button>
+                                                          <button className="button" onClick={async () => { const url = await asyncPrompt('Image URL or Path (/api/media?file=):'); if (url) setEditingCard({...editingCard, back: editingCard.back + `<img src="${url}" style="max-width:100%" />`}); }} style={{ padding: '4px 10px', fontSize: '0.85rem' }}>Img</button>
                                                       </div>
-                                                      <textarea placeholder="Back (Answer)" value={editingCard.back} onChange={e => setEditingCard({...editingCard, back: e.target.value})} onPaste={e => handlePaste(e, 'back')} style={{ background: 'var(--base)', color: 'var(--text)', border: '1px solid var(--muted)', borderRadius: '4px', padding: '10px', minHeight: '80px', fontFamily: 'inherit', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
+                                                      <textarea className="unified-input" placeholder="Back (Answer)" value={editingCard.back} onChange={e => setEditingCard({...editingCard, back: e.target.value})} onPaste={e => handlePaste(e, 'back')} style={{ minHeight: '100px', resize: 'vertical' }} />
                                                   </div>
                                               </div>
                                           )}
                                           
-                                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '15px' }}>
-                                              <button className="button" onClick={() => setEditingCard(null)} style={{ color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
+                                          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
+                                              <button className="button" onClick={() => setEditingCard(null)} style={{ color: 'var(--love)', borderColor: 'rgba(235, 111, 146, 0.4)' }}>Cancel</button>
                                               <button className="button" onClick={handleSaveCard} style={{ background: 'var(--pine)', color: 'var(--base)', borderColor: 'var(--pine)', fontWeight: 'bold' }}>Save Card</button>
                                           </div>
                                       </div>
@@ -529,36 +546,39 @@ export default function FlashcardManager({ ctx }: { ctx: any }) {
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                           <input 
                                               type="text" 
+                                              className="unified-input"
                                               placeholder="Search cards..." 
                                               value={searchCardQuery} 
                                               onChange={e => setSearchCardQuery(e.target.value)} 
-                                              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--muted)', padding: '8px 15px', borderRadius: '4px', width: '300px' }} 
+                                              style={{ width: '300px' }} 
                                           />
                                       </div>
                                       
                                       {deck.cards.length === 0 ? (
-                                          <div style={{ color: 'var(--muted)', textAlign: 'center', marginTop: '20px' }}>No cards in this deck yet.</div>
+                                          <div style={{ color: 'var(--subtle)', textAlign: 'center', marginTop: '30px', padding: '40px', background: 'var(--surface)', borderRadius: '12px', border: '1px dashed rgba(110, 106, 134, 0.2)' }}>
+                                              No cards in this deck yet. Click "NEW CARD" to add some!
+                                          </div>
                                       ) : deck.cards.filter((c: any) => !searchCardQuery || c.front.toLowerCase().includes(searchCardQuery.toLowerCase()) || c.back.toLowerCase().includes(searchCardQuery.toLowerCase())).map((card: any) => (
-                                          <div key={card.id} style={{ display: 'flex', background: 'var(--base)', border: '1px solid var(--surface)', borderRadius: '6px', overflow: 'hidden' }}>
-                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px dashed var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>FRONT</div>
+                                          <div key={card.id} className="sub-panel hover-glow" style={{ display: 'flex', overflow: 'hidden', padding: 0 }}>
+                                              <div style={{ flex: 1, padding: '20px', borderRight: '1px solid rgba(110, 106, 134, 0.15)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '8px', fontWeight: 600 }}>FRONT</div>
                                                   <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.front) }} />
                                               </div>
-                                              <div style={{ flex: 1, padding: '15px', borderRight: '1px solid var(--surface)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--gold)' }}>
-                                                  <div style={{ fontSize: '0.8rem', color: 'var(--subtle)', marginBottom: '5px' }}>BACK</div>
+                                              <div style={{ flex: 1, padding: '20px', borderRight: '1px solid rgba(110, 106, 134, 0.15)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: 'var(--gold)' }}>
+                                                  <div style={{ fontSize: '0.8rem', color: 'var(--gold)', marginBottom: '8px', fontWeight: 600 }}>BACK</div>
                                                   <div className="flashcard-content" dangerouslySetInnerHTML={{ __html: processHtml(card.back) }} />
                                               </div>
-                                              <div style={{ width: '100px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px', background: 'var(--hl-low)', padding: '10px' }}>
-                                                  <div style={{ fontSize: '0.7rem', color: 'var(--subtle)', textAlign: 'center' }}>
+                                              <div style={{ width: '120px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '8px', background: 'rgba(38, 35, 58, 0.6)', padding: '15px' }}>
+                                                  <div style={{ fontSize: '0.75rem', color: 'var(--subtle)', textAlign: 'center', marginBottom: '4px', fontWeight: 500 }}>
                                                      Ease: {card.ease?.toFixed(2) || '2.50'}<br/>
                                                      Int: {card.interval || 0}d
                                                   </div>
-                                                  <button className="button" onClick={() => { setEditingCard(card); setEditingPreview(false); }} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--foam)', color: 'var(--foam)' }}>Edit</button>
-                                                  <button className="button" onClick={() => handleDeleteCard(card.id)} style={{ width: '100%', fontSize: '0.8rem', padding: '5px', borderColor: 'var(--love)', color: 'var(--love)' }}>Delete</button>
+                                                  <button className="button" onClick={() => { setEditingCard(card); setEditingPreview(false); }} style={{ width: '100%', fontSize: '0.8rem', padding: '6px', borderColor: 'rgba(156, 207, 216, 0.4)', color: 'var(--foam)' }}>Edit</button>
+                                                  <button className="button" onClick={() => handleDeleteCard(card.id)} style={{ width: '100%', fontSize: '0.8rem', padding: '6px', borderColor: 'rgba(235, 111, 146, 0.4)', color: 'var(--love)' }}>Delete</button>
                                                   
                                                   <select 
-                                                      className="button" 
-                                                      style={{ width: '100%', fontSize: '0.75rem', padding: '5px', borderColor: 'var(--muted)', color: 'var(--text)', background: 'transparent' }}
+                                                      className="unified-input" 
+                                                      style={{ width: '100%', fontSize: '0.75rem', padding: '6px' }}
                                                       onChange={(e) => {
                                                           if (e.target.value) handleMoveCard(card.id, e.target.value);
                                                           e.target.value = '';

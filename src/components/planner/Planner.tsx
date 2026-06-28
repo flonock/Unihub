@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import ActionItems from './ActionItems';
+import GanttChart from '../dashboard/GanttChart';
 
 export default function Planner({ ctx }: { ctx: any }) {
+  const [viewMode, setViewMode] = useState<'calendar' | 'gantt'>('calendar');
+
   const { 
     currentMonth, setCurrentMonth, data, newEventTitle, setNewEventTitle, 
     newEventType, setNewEventType, newEventStart, setNewEventStart, 
@@ -68,95 +72,122 @@ export default function Planner({ ctx }: { ctx: any }) {
   };
 
   return (
-    <div className="planner">
-       <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '30px' }}>
-          <div>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: 'var(--surface)', border: '1px solid var(--muted)', padding: '10px 20px', borderRadius: '4px' }}>
-                <button className="button" style={{ borderColor: 'var(--subtle)', color: 'var(--text)' }} onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>&lt; Prev</button>
-                <h2 style={{ color: 'var(--iris)', margin: 0 }}>
-                    {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </h2>
-                <button className="button" style={{ borderColor: 'var(--subtle)', color: 'var(--text)' }} onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>Next &gt;</button>
-             </div>
-             
-             {renderCalendar()}
+    <div className="planner" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '20px' }}>
+       {/* Toggle Header */}
+       <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+           <h2 style={{ margin: 0, color: 'var(--iris)' }}>&gt; PLANNER</h2>
+           <div style={{ display: 'flex', background: 'var(--base)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--muted)' }}>
+               <button onClick={() => setViewMode('calendar')} style={{ background: viewMode === 'calendar' ? 'var(--iris)' : 'transparent', color: viewMode === 'calendar' ? 'var(--base)' : 'var(--text)', border: 'none', padding: '8px 16px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>CALENDAR</button>
+               <button onClick={() => setViewMode('gantt')} style={{ background: viewMode === 'gantt' ? 'var(--iris)' : 'transparent', color: viewMode === 'gantt' ? 'var(--base)' : 'var(--text)', border: 'none', padding: '8px 16px', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.2s' }}>GANTT CHART</button>
+           </div>
+       </div>
 
-             {/* Add/Edit Event Form */}
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px', background: 'var(--surface)', padding: '15px', border: `1px ${editingEventId ? 'solid var(--foam)' : 'solid var(--muted)'}`, borderRadius: '4px' }}>
-                <input placeholder="Event Title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{ flex: 2, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <select value={newEventType} onChange={e => setNewEventType(e.target.value as any)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-                      <option value="study">Study Block</option>
-                      <option value="task">Deadline</option>
-                  </select>
-                  {newEventType === 'study' && (
-                      <select value={newEventLinkedDeckId || ''} onChange={e => setNewEventLinkedDeckId(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
-                          <option value="">-- Link to Flashcard Deck (Optional) --</option>
-                          {(data.decks || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                      </select>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <input type="date" value={newEventStart} onChange={e => setNewEventStart(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                  <span style={{ color: 'var(--muted)' }}>to</span>
-                  <input type="date" value={newEventEnd} onChange={e => setNewEventEnd(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
-                </div>
-                
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button className="button" onClick={handleAddOrUpdateEvent} style={{ flex: 1, padding: '5px 15px' }}>
-                     {editingEventId ? 'Update' : 'Add'}
-                  </button>
-                  {editingEventId && (
-                     <button className="button" onClick={cancelEditEvent} style={{ flex: 1, color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
-                  )}
-                </div>
-             </div>
+       <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '30px', flex: 1, minHeight: 0 }}>
+          {/* Left Pane (Calendar or Gantt) */}
+          <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', paddingRight: '10px', gap: '20px' }}>
+              {viewMode === 'calendar' ? (
+                  <>
+                      {/* Calendar Navigation */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--muted)', padding: '10px 20px', borderRadius: '4px' }}>
+                          <button className="button" style={{ borderColor: 'var(--subtle)', color: 'var(--text)' }} onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}>&lt; Prev</button>
+                          <h2 style={{ color: 'var(--iris)', margin: 0 }}>
+                              {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                          </h2>
+                          <button className="button" style={{ borderColor: 'var(--subtle)', color: 'var(--text)' }} onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}>Next &gt;</button>
+                      </div>
+                      
+                      {renderCalendar()}
+
+                      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                          {/* Add/Edit Event Form */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', background: 'var(--surface)', padding: '15px', border: `1px ${editingEventId ? 'solid var(--foam)' : 'solid var(--muted)'}`, borderRadius: '4px' }}>
+                             <input placeholder="Event Title" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} style={{ flex: 2, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
+                             <div style={{ display: 'flex', gap: '10px' }}>
+                               <select value={newEventType} onChange={e => setNewEventType(e.target.value as any)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                                   <option value="study">Study Block</option>
+                                   <option value="task">Deadline</option>
+                               </select>
+                               {newEventType === 'study' && (
+                                   <select value={newEventLinkedDeckId || ''} onChange={e => setNewEventLinkedDeckId(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}>
+                                       <option value="">-- Link to Flashcard Deck (Optional) --</option>
+                                       {(data.decks || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                   </select>
+                               )}
+                             </div>
+                             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                               <input type="date" value={newEventStart} onChange={e => setNewEventStart(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
+                               <span style={{ color: 'var(--muted)' }}>to</span>
+                               <input type="date" value={newEventEnd} onChange={e => setNewEventEnd(e.target.value)} style={{ flex: 1, background: 'var(--base)', color: 'var(--text)', border: 'none', borderBottom: '1px solid var(--muted)', padding: '5px', outline: 'none', fontFamily: 'inherit' }} />
+                             </div>
+                             
+                             <div style={{ display: 'flex', gap: '10px' }}>
+                               <button className="button" onClick={handleAddOrUpdateEvent} style={{ flex: 1, padding: '5px 15px' }}>
+                                  {editingEventId ? 'Update' : 'Add'}
+                               </button>
+                               {editingEventId && (
+                                  <button className="button" onClick={cancelEditEvent} style={{ flex: 1, color: 'var(--love)', borderColor: 'var(--love)' }}>Cancel</button>
+                               )}
+                             </div>
+                          </div>
+                          
+                          {/* Event Manager */}
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                             <h2 style={{ color: 'var(--gold)', marginBottom: '10px', fontSize: '1rem', marginTop: 0 }}>&gt; EVENT MANAGER</h2>
+                             <div style={{ background: 'var(--surface)', border: '1px solid var(--muted)', padding: '15px', flex: 1, overflowY: 'auto', borderRadius: '4px', maxHeight: '250px' }}>
+                                {(data.events || []).length === 0 ? (
+                                    <div style={{ color: 'var(--subtle)' }}>No events scheduled.</div>
+                                ) : (
+                                    (data.events || []).sort((a: any,b: any) => a.startDate.localeCompare(b.startDate)).map((ev: any) => (
+                                        <div key={`mgr-${ev.id}`} className="hover-glow" style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '10px', background: 'var(--base)', borderLeft: '4px solid ' + (ev.type === 'study' ? 'var(--pine)' : 'var(--gold)') }}>
+                                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                              <span style={{ color: ev.type === 'study' ? 'var(--pine)' : 'var(--gold)', fontWeight: 'bold' }}>{ev.title}</span>
+                                              <div style={{ display: 'flex', gap: '10px' }}>
+                                                 {ev.linkedDeckId && (
+                                                    <span style={{ color: 'var(--pine)', cursor: 'pointer', fontSize: '0.8rem', border: '1px solid var(--pine)', padding: '0 4px', borderRadius: '2px' }} onClick={() => {
+                                                        const deck = (data.decks || []).find((d: any) => d.id === ev.linkedDeckId);
+                                                        if (deck) {
+                                                            setActiveTab('FLASHCARDS');
+                                                            if (setFlashcardTab) setFlashcardTab('SESSIONS');
+                                                            const newSession = {
+                                                                id: 'session-' + Date.now(),
+                                                                name: `Review: ${deck.name} (from Planner)`,
+                                                                linkedSemester: deck.linkedSemester,
+                                                                linkedLecture: deck.linkedLecture,
+                                                                deckIds: [deck.id],
+                                                                cards: [],
+                                                                createdAt: new Date().toISOString()
+                                                            };
+                                                            const newData = { ...data, studySessions: [...(data.studySessions || []), newSession] };
+                                                            ctx.saveData(newData);
+                                                            if (prepareCramQueue) prepareCramQueue(newSession, 'ALL');
+                                                        }
+                                                    }} title="Start Study Session">[STUDY]</span>
+                                                 )}
+                                                 <span style={{ color: 'var(--gold)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => cloneEvent(ev)} title="Copy">[COPY]</span>
+                                                 <span style={{ color: 'var(--foam)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => startEditEvent(ev)} title="Edit">[EDIT]</span>
+                                                 <span style={{ color: 'var(--love)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => handleDeleteEvent(ev.id)} title="Delete">[DEL]</span>
+                                              </div>
+                                           </div>
+                                           <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>
+                                              {ev.startDate} {ev.startDate !== ev.endDate ? `to ${ev.endDate}` : ''}
+                                           </div>
+                                        </div>
+                                    ))
+                                )}
+                             </div>
+                          </div>
+                      </div>
+                  </>
+              ) : (
+                  <div style={{ background: 'var(--surface)', border: '1px solid var(--muted)', borderRadius: '8px', padding: '15px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                      <GanttChart ctx={ctx} />
+                  </div>
+              )}
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <h2 style={{ color: 'var(--gold)', marginBottom: '20px', fontSize: '1.2rem', marginTop: 0 }}>&gt; EVENT MANAGER</h2>
-             <div style={{ background: 'var(--surface)', border: '1px solid var(--muted)', padding: '15px', flex: 1, overflowY: 'auto', borderRadius: '4px' }}>
-                {(data.events || []).length === 0 ? (
-                    <div style={{ color: 'var(--subtle)' }}>No events scheduled.</div>
-                ) : (
-                    (data.events || []).sort((a: any,b: any) => a.startDate.localeCompare(b.startDate)).map((ev: any) => (
-                        <div key={`mgr-${ev.id}`} className="hover-glow" style={{ marginBottom: '15px', border: '1px solid var(--muted)', padding: '10px', background: 'var(--base)', borderLeft: '4px solid ' + (ev.type === 'study' ? 'var(--pine)' : 'var(--gold)') }}>
-                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                              <span style={{ color: ev.type === 'study' ? 'var(--pine)' : 'var(--gold)', fontWeight: 'bold' }}>{ev.title}</span>
-                              <div style={{ display: 'flex', gap: '10px' }}>
-                                 {ev.linkedDeckId && (
-                                    <span style={{ color: 'var(--pine)', cursor: 'pointer', fontSize: '0.8rem', border: '1px solid var(--pine)', padding: '0 4px', borderRadius: '2px' }} onClick={() => {
-                                        const deck = (data.decks || []).find((d: any) => d.id === ev.linkedDeckId);
-                                        if (deck) {
-                                            setActiveTab('FLASHCARDS');
-                                            if (setFlashcardTab) setFlashcardTab('SESSIONS');
-                                            const newSession = {
-                                                id: 'session-' + Date.now(),
-                                                name: `Review: ${deck.name} (from Planner)`,
-                                                linkedSemester: deck.linkedSemester,
-                                                linkedLecture: deck.linkedLecture,
-                                                deckIds: [deck.id],
-                                                cards: [],
-                                                createdAt: new Date().toISOString()
-                                            };
-                                            const newData = { ...data, studySessions: [...(data.studySessions || []), newSession] };
-                                            ctx.saveData(newData);
-                                            if (prepareCramQueue) prepareCramQueue(newSession, 'ALL');
-                                        }
-                                    }} title="Start Study Session">[STUDY]</span>
-                                 )}
-                                 <span style={{ color: 'var(--gold)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => cloneEvent(ev)} title="Copy">[COPY]</span>
-                                 <span style={{ color: 'var(--foam)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => startEditEvent(ev)} title="Edit">[EDIT]</span>
-                                 <span style={{ color: 'var(--love)', cursor: 'pointer', fontSize: '0.8rem' }} onClick={() => handleDeleteEvent(ev.id)} title="Delete">[DEL]</span>
-                              </div>
-                           </div>
-                           <div style={{ color: 'var(--subtle)', fontSize: '0.8rem' }}>
-                              {ev.startDate} {ev.startDate !== ev.endDate ? `to ${ev.endDate}` : ''}
-                           </div>
-                        </div>
-                    ))
-                )}
-             </div>
+          {/* Right Pane (Task Manager) */}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--muted)', borderRadius: '8px', padding: '15px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+             <ActionItems ctx={ctx} />
           </div>
        </div>
     </div>

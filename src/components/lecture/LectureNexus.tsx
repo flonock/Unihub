@@ -178,6 +178,9 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                          <span style={{ color: 'var(--text)', fontWeight: 'bold' }}>{inlinePreviewFile.name}</span>
                          <div style={{ display: 'flex', gap: '10px' }}>
+                            {inlinePreviewFile.ext === 'pdf' && (
+                               <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={() => { handleOpen(inlinePreviewFile, true, 'xournal'); setInlinePreviewFile(null); }}>XOURNAL</button>
+                            )}
                             <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => { handleOpen(inlinePreviewFile); setInlinePreviewFile(null); }}>EXPAND</button>
                             <button className="button" style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--love)', borderColor: 'var(--love)' }} onClick={() => setInlinePreviewFile(null)}>CLOSE</button>
                          </div>
@@ -191,6 +194,9 @@ export default function LectureNexus({ ctx }: { ctx: any }) {
                          <div key={file.path} className="sub-panel hover-glow" style={{ padding: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px' }} onClick={() => handleInlineOpen(file)}>
                             <span style={{ fontSize: '1.2rem' }}>{file.isDirectory ? '📁' : (file.ext === 'pdf' ? '📄' : (file.ext === 'xopp' ? '📓' : '📝'))}</span>
                             <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.85rem' }}>{file.name}</span>
+                            {file.ext === 'pdf' && (
+                               <button className="button" style={{ padding: '2px 5px', fontSize: '0.6rem', color: 'var(--rose)', borderColor: 'var(--rose)' }} onClick={(e) => { e.stopPropagation(); handleOpen(file, true, 'xournal'); }}>XOURNAL</button>
+                            )}
                             {!file.isDirectory && (
                                <button className="button" style={{ padding: '2px 5px', fontSize: '0.6rem' }} onClick={(e) => { e.stopPropagation(); handleOpen(file, true); }}>EXT</button>
                             )}

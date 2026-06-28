@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Dashboard from '@/components/dashboard/Dashboard';
+import GanttChart from '@/components/dashboard/GanttChart';
 import FlashcardManager from '@/components/flashcards/FlashcardManager';
 import WidgetPanel from '@/components/widgets/WidgetPanel';
 import FlashcardOverview from '@/components/flashcards/FlashcardOverview';
@@ -13,8 +14,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import type { FileEntry, Exam, Todo, CalendarEvent, LectureMeta, Flashcard, Deck, StudySession, WorkspaceData } from '@/types';
 
 export default function Workspace() {
-  const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS' | 'WIDGETS'>('MISSION_CONTROL');
-  const [rightPanelMode, setRightPanelMode] = useState<'ACTION_ITEMS' | 'FLASHCARDS' | 'HIDDEN'>('ACTION_ITEMS');
+  const [activeTab, setActiveTab] = useState<'MISSION_CONTROL' | 'BROWSER' | 'PLANNER' | 'OVERVIEW' | 'FLASHCARDS' | 'WIDGETS' | 'GANTT' | 'TASKS' | 'CARDS_OVERVIEW'>('MISSION_CONTROL');
 
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [currentPath, setCurrentPath] = useState('');
@@ -37,7 +37,7 @@ export default function Workspace() {
   };
 
   // Flashcard State
-  const [flashcardTab, setFlashcardTab] = useState<'SESSIONS' | 'LIBRARY'>('SESSIONS');
+  const [flashcardTab, setFlashcardTab] = useState<'SESSIONS' | 'LIBRARY' | 'BUFFL'>('SESSIONS');
   const [sessionBuilder, setSessionBuilder] = useState<StudySession | null>(null);
   const [expandedDecks, setExpandedDecks] = useState<Record<string, boolean>>({});
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -1739,7 +1739,8 @@ export default function Workspace() {
       {!studyMode && <Sidebar ctx={ctx} />}
       
       <div className="main-content" style={{ flex: 1, padding: studyMode ? '0' : '40px', overflowY: 'auto' }}>
-        {activeTab === 'MISSION_CONTROL' && <Dashboard ctx={ctx} />}
+                {activeTab === 'MISSION_CONTROL' && <Dashboard ctx={ctx} />}
+        {activeTab === 'GANTT' && <GanttChart ctx={ctx} />}
         
         {activeTab === 'BROWSER' && (
           <LectureNexus ctx={ctx} />
@@ -1771,22 +1772,11 @@ export default function Workspace() {
         )}
         
         {activeTab === 'FLASHCARDS' && <FlashcardManager ctx={ctx} />}
-            {activeTab === 'WIDGETS' && <WidgetPanel appConfig={appConfig} />}
+        {activeTab === 'WIDGETS' && <WidgetPanel appConfig={appConfig} />}
         {activeTab === 'PLANNER' && <Planner ctx={ctx} />}
+        {activeTab === 'TASKS' && <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: 'var(--surface)' }}><ActionItems ctx={ctx} /></div>}
+        {activeTab === 'CARDS_OVERVIEW' && <div style={{ flex: 1, overflowY: 'auto', padding: '15px', background: 'var(--surface)' }}><FlashcardOverview ctx={ctx} /></div>}
       </div>
-
-      {rightPanelMode !== 'HIDDEN' && !studyMode && (
-        <div className="right-panel" style={{ width: '400px', background: 'var(--surface)', borderLeft: '2px dashed var(--muted)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', padding: '15px', gap: '10px', borderBottom: '1px solid var(--muted)' }}>
-            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'ACTION_ITEMS' ? 'var(--gold)' : 'var(--muted)', color: rightPanelMode === 'ACTION_ITEMS' ? 'var(--gold)' : 'var(--text)' }} onClick={() => setRightPanelMode('ACTION_ITEMS')}>TASKS</button>
-            <button className="button" style={{ flex: 1, borderColor: rightPanelMode === 'FLASHCARDS' ? 'var(--foam)' : 'var(--muted)', color: rightPanelMode === 'FLASHCARDS' ? 'var(--foam)' : 'var(--text)' }} onClick={() => setRightPanelMode('FLASHCARDS')}>CARDS</button>
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
-            {rightPanelMode === 'ACTION_ITEMS' && <ActionItems ctx={ctx} />}
-            {rightPanelMode === 'FLASHCARDS' && <FlashcardOverview ctx={ctx} />}
-          </div>
-        </div>
-      )}
 
       {showCommandPalette && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', paddingTop: '10vh', backdropFilter: 'blur(4px)' }} onClick={() => setShowCommandPalette(false)}>

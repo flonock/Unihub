@@ -26,6 +26,12 @@ export default function Sidebar({ ctx }: { ctx: any }) {
          <button className="button" style={{ borderColor: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--muted)', color: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('WIDGETS')}>
              <Icons.Plus size={14} /> UTILITIES
          </button>
+         <button className="button" style={{ borderColor: activeTab === 'PLANNER' ? 'var(--gold)' : 'var(--muted)', color: activeTab === 'PLANNER' ? 'var(--gold)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('PLANNER')}>
+             <Icons.Plus size={14} /> PLANNER
+         </button>
+         <button className="button" style={{ borderColor: activeTab === 'CARDS_OVERVIEW' ? 'var(--love)' : 'var(--muted)', color: activeTab === 'CARDS_OVERVIEW' ? 'var(--love)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('CARDS_OVERVIEW')}>
+             <Icons.Plus size={14} /> CARDS OVERVIEW
+         </button>
       </div>
 
       {/* SEMESTER SELECTOR */}

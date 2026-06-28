@@ -1,17 +1,15 @@
-with open('src/components/layout/Sidebar.tsx', 'r') as f:
-    sidebar = f.read()
+import re
 
-sidebar = sidebar.replace(
-    '''<Icons.Plus size={14} /> FLASHCARD DB
+with open('src/components/layout/Sidebar.tsx', 'r') as f:
+    content = f.read()
+
+new_button = """         <button className="button" style={{ borderColor: activeTab === 'GANTT' ? 'var(--gold)' : 'var(--muted)', color: activeTab === 'GANTT' ? 'var(--gold)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('GANTT')}>
+             <Icons.Plus size={14} /> GANTT CHART
          </button>
-      </div>''',
-    '''<Icons.Plus size={14} /> FLASHCARD DB
-         </button>
-         <button className="button" style={{ borderColor: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--muted)', color: activeTab === 'WIDGETS' ? 'var(--foam)' : 'var(--text)', justifyContent: 'flex-start' }} onClick={() => setActiveTab('WIDGETS')}>
-             <Icons.Plus size={14} /> UTILITIES
-         </button>
-      </div>'''
-)
+      </div>"""
+
+content = content.replace("      </div>\n\n      {/* SEMESTER SELECTOR */}", new_button + "\n\n      {/* SEMESTER SELECTOR */}")
 
 with open('src/components/layout/Sidebar.tsx', 'w') as f:
-    f.write(sidebar)
+    f.write(content)
+
